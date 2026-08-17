@@ -1,0 +1,292 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4efe4;
+  --foreground: #1c2418;
+  --surface: #fffaf1;
+  --surface-2: #ebe4d4;
+  --muted: #6b735f;
+  --border: #d8d0be;
+  --primary: #4f8a3a;
+  --primary-strong: #3d6e2c;
+  --accent: #8fbf4a;
+  --pit: #7a4a24;
+  --star: #f3c14b;
+  --success: #3d9a55;
+  --danger: #d4544a;
+  --glow: rgba(143, 191, 74, 0.35);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+.dark {
+  --background: #121212;
+  --foreground: #f4efe4;
+  --surface: #1b1b1b;
+  --surface-2: #262626;
+  --muted: #b7b3a6;
+  --border: #33322e;
+  --primary: #8fbf4a;
+  --primary-strong: #b6e06a;
+  --accent: #c5e07a;
+  --pit: #c48a4a;
+  --star: #f6d36a;
+  --success: #62d48a;
+  --danger: #ff7a72;
+  --glow: rgba(243, 193, 75, 0.18);
+}
+
+* {
+  border-color: var(--border);
+  box-sizing: border-box;
+}
+
+body {
+  background:
+    radial-gradient(circle at 12% -10%, var(--glow), transparent 32%),
+    radial-gradient(circle at 90% 0%, rgba(79, 138, 58, 0.12), transparent 28%),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), sans-serif;
+  min-height: 100vh;
+}
+
+.dark body,
+.dark {
+  background-image:
+    radial-gradient(circle at 18% 8%, rgba(243, 193, 75, 0.12), transparent 22%),
+    radial-gradient(circle at 88% 12%, rgba(143, 191, 74, 0.12), transparent 24%);
+}
+
+button, a, input, textarea, select {
+  outline-offset: 3px;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--primary);
+}
+
+.card {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 2px solid var(--border);
+  border-radius: 1.6rem;
+  box-shadow: 8px 10px 0 color-mix(in srgb, var(--foreground) 8%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.btn-primary {
+  align-items: center;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border: 2px solid color-mix(in srgb, var(--foreground) 18%, transparent);
+  border-radius: 999px;
+  box-shadow: 0 8px 0 color-mix(in srgb, var(--primary-strong) 70%, #000);
+  color: #fff;
+  display: inline-flex;
+  font-weight: 800;
+  gap: .5rem;
+  justify-content: center;
+  padding: .85rem 1.2rem;
+  transition: filter .2s, transform .2s;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.06);
+  transform: translateY(-2px);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--primary-strong) 70%, #000);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.soft {
+  background: var(--surface-2);
+}
+
+.brand-mark {
+  align-items: center;
+  display: inline-flex;
+  font-size: 1.25rem;
+  font-weight: 900;
+  gap: .7rem;
+  letter-spacing: -.03em;
+}
+
+.brand-pit {
+  background: linear-gradient(160deg, #8fbf4a, #4f8a3a 55%, #3d6e2c);
+  border: 2.5px solid #1c2418;
+  border-radius: 50% 50% 48% 52%;
+  box-shadow: 3px 4px 0 #1c2418;
+  display: grid;
+  height: 2.5rem;
+  place-items: center;
+  width: 2.5rem;
+}
+
+.brand-face {
+  background: #7a4a24;
+  border: 2px solid #1c2418;
+  border-radius: 50%;
+  display: block;
+  height: .95rem;
+  position: relative;
+  width: .95rem;
+}
+
+.brand-face::before,
+.brand-face::after {
+  background: #1c2418;
+  border-radius: 999px;
+  content: "";
+  height: 5px;
+  position: absolute;
+  top: -8px;
+  width: 5px;
+}
+
+.brand-face::before { left: -2px; }
+.brand-face::after { right: -2px; }
+
+.buddy {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.buddy-art {
+  filter: drop-shadow(8px 12px 0 color-mix(in srgb, var(--foreground) 12%, transparent));
+  height: auto;
+  max-width: 100%;
+}
+
+.buddy-bubble {
+  background: var(--surface);
+  border: 2px solid #1c2418;
+  border-radius: 1.2rem 1.2rem 1.2rem .4rem;
+  box-shadow: 4px 5px 0 color-mix(in srgb, var(--foreground) 16%, transparent);
+  font-size: .95rem;
+  font-weight: 700;
+  line-height: 1.45;
+  max-width: 16rem;
+  padding: .75rem 1rem;
+}
+
+.stars {
+  background-image: radial-gradient(circle, var(--star) 1.2px, transparent 1.4px);
+  background-size: 42px 42px;
+}
+
+.btn-secondary {
+  align-items: center;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  color: var(--foreground);
+  display: inline-flex;
+  font-weight: 800;
+  gap: .45rem;
+  justify-content: center;
+  padding: .75rem 1.1rem;
+}
+
+.btn-secondary:hover {
+  border-color: var(--primary);
+}
+
+.kicker {
+  color: var(--primary);
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.field {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: .9rem;
+  font: inherit;
+  padding: .8rem 1rem;
+  width: 100%;
+}
+
+.field:focus {
+  border-color: var(--primary);
+}
+
+.step-chip {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: .8rem;
+  font-weight: 800;
+  gap: .45rem;
+  padding: .4rem .75rem;
+}
+
+.step-chip span {
+  align-items: center;
+  border-radius: 999px;
+  display: grid;
+  font-size: .7rem;
+  height: 1.25rem;
+  place-items: center;
+  width: 1.25rem;
+}
+
+.step-chip.done {
+  background: color-mix(in srgb, var(--success) 16%, var(--surface));
+  color: var(--success);
+}
+
+.step-chip.now {
+  background: var(--primary);
+  color: #fff;
+}
+
+.step-chip.todo {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.progress-track {
+  background: var(--surface-2);
+  border-radius: 999px;
+  height: .55rem;
+  overflow: hidden;
+}
+
+.progress-track span {
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  transition: width .35s ease;
+}
+
+.today-card {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, var(--surface)), var(--surface));
+  border: 2px solid var(--primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .btn-primary,
+  .buddy-art,
+  .progress-track span {
+    transition: none;
+  }
+}
