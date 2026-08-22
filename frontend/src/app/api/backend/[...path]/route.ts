@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
+const backendUrl = (process.env.BACKEND_URL ?? "").replace(/\/$/, "");
 
 export const maxDuration = 300;
 
 async function proxy(request: NextRequest, path: string[]) {
+  if (!backendUrl) {
+    return NextResponse.json({ detail: "BACKEND_URL is not set" }, { status: 503 });
+  }
   const target = `${backendUrl}/${path.join("/")}${request.nextUrl.search}`;
   const headers = new Headers(request.headers);
   headers.delete("host");
