@@ -44,6 +44,16 @@ class Settings(BaseSettings):
     uploadthing_token: str = ""
     max_upload_mb: int = 25
 
+    @field_validator("*", mode="before")
+    @classmethod
+    def strip_string_values(cls, value: object) -> object:
+        # A stray trailing newline/space from a copy-pasted secret or a
+        # platform's env-var editor (e.g. Hugging Face Space secrets) is
+        # invisible in the UI but makes httpx reject the Authorization
+        # header outright ("Illegal header value"), which looks exactly
+        # like the AI provider being unreachable. Strip defensively.
+        return value.strip() if isinstance(value, str) else value
+
     @field_validator("ai_base_url")
     @classmethod
     def openai_v1_prefix(cls, value: str) -> str:

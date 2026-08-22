@@ -95,5 +95,8 @@ Run `alembic upgrade head` as a release step. For higher upload volume, move
 `ingest_document` from FastAPI background tasks to a durable worker queue and replace the
 single-process rate limiter with Redis. Health probes are available at `/health` and `/ready`.
 
-The included Dockerfiles build both services. `docker-compose.yml` also provides local
-pgvector PostgreSQL; point `DATABASE_URL` at `postgres` when using that compose stack.
+The included Dockerfiles build both services. `backend/Dockerfile.huggingface` is a Hugging Face
+Docker Space image: it listens on port **7860** and downloads **BAAI/bge-m3** at build time. Copy
+it as `Dockerfile` in the Space repo and set secrets from `backend/README.space.md`.
+`docker-compose.yml` also provides local pgvector PostgreSQL; point `DATABASE_URL` at `postgres`
+when using that compose stack.

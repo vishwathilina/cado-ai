@@ -19,6 +19,8 @@ from app.utils import chunk_text
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 _ingesting: set[uuid.UUID] = set()
+EXTRACTION_TIMEOUT_SECONDS = 180
+EMBEDDING_TIMEOUT_SECONDS = 120
 PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 ALLOWED_MIME_TYPES = {
     "application/pdf",
@@ -170,7 +172,15 @@ async def _ingest_document(document_id: uuid.UUID) -> None:
                 response = await client.get(document.file_url)
                 response.raise_for_status()
             try:
-                pages = await asyncio.to_thread(extract_content, response.content, document.mime_type)
+                pages = await asyncio.wait_for(
+                    asyncio.to_thread(extract_content, response.content, document.mime_type),
+                    timeout=EXTRACTION_TIMEOUT_SECONDS,
+                )
+            except TimeoutError:
+                raise ValueError(
+                    "This file took too long to read (likely a large scanned document). "
+                    "Try a smaller file or fewer pages."
+                ) from None
             except OcrUnavailable:
                 if not document.mime_type.startswith("image/"):
                     raise
@@ -187,7 +197,15 @@ async def _ingest_document(document_id: uuid.UUID) -> None:
             ]
             if not chunks_with_pages:
                 raise ValueError("No readable text was found in this file")
-            vectors = await embed_texts([chunk for _, chunk in chunks_with_pages])
+            try:
+                vectors = await asyncio.wait_for(
+                    embed_texts([chunk for _, chunk in chunks_with_pages]),
+                    timeout=EMBEDDING_TIMEOUT_SECONDS,
+                )
+            except TimeoutError:
+                raise ValueError(
+                    "Embedding this file took too long. Try again in a moment, or use a smaller file."
+                ) from None
             await db.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
             db.add_all(
                 [

@@ -3,12 +3,15 @@ from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.deps import current_user
 from app.api.routes import auth, dashboard, documents, learning, study
 from app.config import settings
+from app.models import User
+from app.services.diagnostics import run_diagnostics
 from app.services.embeddings import warm_embeddings
 
 logger = structlog.get_logger()
@@ -34,7 +37,7 @@ app.add_middleware(
 
 rate_buckets: dict[str, deque[float]] = defaultdict(deque)
 csrf_exempt_prefixes = ("/auth/login", "/auth/register", "/health", "/ready", "/docs", "/openapi.json")
-rate_limited_prefixes = ("/auth", "/study-sets/generate", "/vocabulary")
+rate_limited_prefixes = ("/auth", "/study-sets/generate", "/vocabulary", "/diagnostics")
 
 
 def _is_csrf_exempt(path: str) -> bool:
@@ -95,3 +98,14 @@ async def health() -> dict[str, str]:
 @app.get("/ready")
 async def ready() -> dict[str, str]:
     return {"status": "ready"}
+
+
+@app.get("/diagnostics")
+async def diagnostics(_user: User = Depends(current_user)) -> dict:
+    """Live check of every dependency (DB, embeddings, OCR, AI provider).
+
+    Requires a logged-in session so it can't be used to hammer the AI
+    provider anonymously. Hit this on the hosted deployment when something
+    is stuck, instead of guessing from request logs.
+    """
+    return await run_diagnostics()

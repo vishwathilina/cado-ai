@@ -1,0 +1,48 @@
+# Hugging Face Docker Space for the Cado API + local BAAI/bge-m3.
+# Space settings: SDK = Docker, app port = 7860.
+# Rename to Dockerfile at the Space repo root (or point the Space at backend/).
+
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=7860 \
+    HOME=/app \
+    HF_HOME=/app/.cache/huggingface \
+    HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface/hub \
+    TRANSFORMERS_CACHE=/app/.cache/huggingface/hub \
+    HF_HUB_DISABLE_TELEMETRY=1 \
+    TOKENIZERS_PARALLELISM=false \
+    EMBEDDING_MODEL=BAAI/bge-m3 \
+    EMBEDDING_DIMENSIONS=1024 \
+    EMBEDDING_LOCAL_ONLY=true \
+    ENVIRONMENT=production \
+    COOKIE_SECURE=true
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git \
+        git-lfs \
+        tesseract-ocr \
+        libgl1 \
+        libgomp1 \
+    && git lfs install \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml .
+COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini .
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir ".[embeddings,ocr]" \
+    && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3'); print('bge-m3 cached')"
+
+COPY . .
+RUN chmod +x start-huggingface.sh
+
+EXPOSE 7860
+CMD ["./start-huggingface.sh"]

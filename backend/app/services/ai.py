@@ -53,6 +53,14 @@ def parse_json_object(content: str) -> dict:
     )
 
 
+def _describe_api_error(exc: Exception) -> str:
+    """Surface the real network/TLS/DNS cause instead of the SDK's generic message."""
+    cause = exc.__cause__
+    if cause is not None and str(cause) and str(cause) != str(exc):
+        return f"{exc} ({type(cause).__name__}: {cause})"
+    return str(exc)
+
+
 def _message_text(message) -> str:
     content = getattr(message, "content", None)
     if isinstance(content, str) and content.strip():
@@ -141,7 +149,9 @@ class AIService:
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
-            raise AIResponseError(f"The study model is unavailable: {exc}") from exc
+            raise AIResponseError(
+                f"The study model is unavailable: {_describe_api_error(exc)}"
+            ) from exc
         if not response.choices:
             raise AIResponseError("The study model returned no choices.")
         return _message_text(response.choices[0].message)
@@ -364,6 +374,21 @@ QUESTION:
         )
         return TutorDraft.model_validate(result)
 
+    async def ping(self) -> str:
+        """Cheap end-to-end call used by diagnostics to prove AI_BASE_URL/AI_API_KEY/AI_MODEL work."""
+        if not settings.ai_api_key:
+            raise AIResponseError("AI_API_KEY is not configured")
+        content = await self._complete(
+            "Reply with exactly one word: OK",
+            "Reply with exactly one word: OK",
+            json_mode=False,
+            temperature=0,
+            max_tokens=5,
+        )
+        if not content.strip():
+            raise AIResponseError("The study model returned an empty reply")
+        return content.strip()[:80]
+
     async def transcribe_image(self, data: bytes, mime_type: str) -> str:
         if not settings.ai_api_key:
             raise AIResponseError("AI_API_KEY is not configured")
@@ -396,7 +421,8 @@ QUESTION:
             response = await self.client.chat.completions.create(**payload)
         except (APIStatusError, APIError) as exc:
             raise AIResponseError(
-                "This image could not be read. Install Tesseract, or use a vision-capable AI_MODEL."
+                "This image could not be read. Install Tesseract, or use a vision-capable AI_MODEL. "
+                f"({_describe_api_error(exc)})"
             ) from exc
         if not response.choices:
             raise AIResponseError("The study model returned no transcription.")

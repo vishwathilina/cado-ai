@@ -8,6 +8,18 @@ os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 from app.config import settings
 
 
+def _hub_cache(cache_root: Path | None = None) -> Path:
+    if cache_root:
+        return cache_root
+    hub = os.environ.get("HUGGINGFACE_HUB_CACHE")
+    if hub:
+        return Path(hub).expanduser()
+    hf_home = os.environ.get("HF_HOME")
+    if hf_home:
+        return Path(hf_home).expanduser() / "hub"
+    return Path.home() / ".cache/huggingface/hub"
+
+
 def resolve_embedding_source(
     model_id: str = settings.embedding_model,
     local_path: str = "",
@@ -19,7 +31,7 @@ def resolve_embedding_source(
         if not path.exists():
             raise RuntimeError(f"EMBEDDING_LOCAL_PATH does not exist: {path}")
         return str(path)
-    cache = (cache_root or Path.home() / ".cache/huggingface/hub") / f"models--{model_id.replace('/', '--')}"
+    cache = _hub_cache(cache_root) / f"models--{model_id.replace('/', '--')}"
     ref = cache / "refs" / "main"
     if ref.is_file():
         revision = ref.read_text().strip().splitlines()[0].strip()
