@@ -9,10 +9,9 @@ from app.api.deps import current_user
 from app.database import get_db
 from app.models import Document, DocumentStatus, User
 from app.schemas import DocumentView, UploadComplete
-from app.services.ingestion import ingest_document
+from app.services.ingestion import ALLOWED_MIME_TYPES, canonical_mime, ingest_document
 
 router = APIRouter(prefix="/documents", tags=["documents"])
-allowed_mime_types = {"application/pdf", "image/png", "image/jpeg", "image/webp"}
 
 
 @router.get("", response_model=list[DocumentView])
@@ -32,7 +31,8 @@ async def upload_complete(
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Document:
-    if payload.mime_type not in allowed_mime_types:
+    mime_type = canonical_mime(payload.mime_type, payload.title)
+    if mime_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Unsupported file type")
     parsed = urlparse(payload.file_url)
     if parsed.scheme != "https" or not parsed.hostname:
@@ -40,7 +40,9 @@ async def upload_complete(
     existing = await db.scalar(select(Document).where(Document.file_key == payload.file_key))
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, "Upload already registered")
-    document = Document(user_id=user.id, **payload.model_dump())
+    fields = payload.model_dump()
+    fields["mime_type"] = mime_type
+    document = Document(user_id=user.id, **fields)
     db.add(document)
     await db.commit()
     await db.refresh(document)
@@ -74,7 +76,7 @@ async def retry_document(
     )
     if not document:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Document not found")
-    if document.status not in {DocumentStatus.FAILED, DocumentStatus.UPLOADED}:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Document is already processing or ready")
+    if document.status == DocumentStatus.READY:
+        return document
     background.add_task(ingest_document, document.id)
     return document

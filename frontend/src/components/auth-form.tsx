@@ -2,14 +2,26 @@
 
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, Suspense, useState } from "react";
 import { BrandMark, CadoBuddy } from "@/components/cado-buddy";
 import { Icon } from "@/components/icon";
 import { api } from "@/lib/api";
+import { safeQuizNext } from "@/lib/next-path";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
+  return (
+    <Suspense>
+      <AuthFormInner mode={mode} />
+    </Suspense>
+  );
+}
+
+function AuthFormInner({ mode }: { mode: "login" | "register" }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = safeQuizNext(searchParams.get("next"));
+  const nextQuery = next ? `?next=${encodeURIComponent(next)}` : "";
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +39,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           ...(mode === "register" ? { name: form.get("name") } : {}),
         }),
       });
-      router.push("/dashboard");
+      router.push(next || "/dashboard");
       router.refresh();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to continue");
@@ -77,7 +89,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </button>
           <p className="muted text-center text-sm">
             {mode === "login" ? "New to Cado?" : "Already have an account?"}{" "}
-            <Link className="font-bold text-[var(--primary)]" href={mode === "login" ? "/register" : "/login"}>
+            <Link className="font-bold text-[var(--primary)]" href={mode === "login" ? `/register${nextQuery}` : `/login${nextQuery}`}>
               {mode === "login" ? "Create account" : "Sign in"}
             </Link>
           </p>

@@ -1,5 +1,6 @@
 import time
 from collections import defaultdict, deque
+from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, Request
@@ -8,9 +9,21 @@ from fastapi.responses import JSONResponse
 
 from app.api.routes import auth, dashboard, documents, learning, study
 from app.config import settings
+from app.services.embeddings import warm_embeddings
 
 logger = structlog.get_logger()
-app = FastAPI(title="Cado AI API", version="0.1.0")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    if settings.environment != "test":
+        logger.info("loading_local_embeddings", model=settings.embedding_model)
+        await warm_embeddings()
+        logger.info("embeddings_ready", model=settings.embedding_model)
+    yield
+
+
+app = FastAPI(title="Cado AI API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_url],
@@ -39,7 +52,9 @@ async def security_and_rate_limits(request: Request, call_next):
             csrf_header = request.headers.get("x-csrf-token")
             if not csrf_cookie or csrf_cookie != csrf_header:
                 return JSONResponse({"detail": "CSRF check failed"}, status_code=403)
-    if settings.environment != "test" and request.url.path.startswith(rate_limited_prefixes):
+    if settings.environment != "test" and (
+        request.url.path.startswith(rate_limited_prefixes) or request.url.path.endswith("/tutor")
+    ):
         now = time.monotonic()
         key = f"{request.client.host if request.client else 'unknown'}:{request.url.path}"
         bucket = rate_buckets[key]

@@ -37,10 +37,20 @@ class Settings(BaseSettings):
     ai_base_url: str = "https://api.openai.com/v1"
     ai_api_key: str = ""
     ai_model: str = "gpt-4o-mini"
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    embedding_dimensions: int = 384
+    embedding_model: str = "BAAI/bge-m3"
+    embedding_dimensions: int = 1024
+    embedding_local_path: str = ""
+    embedding_local_only: bool = True
     uploadthing_token: str = ""
     max_upload_mb: int = 25
+
+    @field_validator("ai_base_url")
+    @classmethod
+    def openai_v1_prefix(cls, value: str) -> str:
+        trimmed = value.rstrip("/")
+        if trimmed.endswith("/v1"):
+            return trimmed
+        return f"{trimmed}/v1"
 
     @field_validator("database_url")
     @classmethod

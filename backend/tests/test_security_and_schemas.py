@@ -37,3 +37,18 @@ def test_generation_allows_four_or_five_options_only() -> None:
     with pytest.raises(ValidationError):
         GenerationRequest(document_id=uuid.uuid4(), option_count=3)
     assert GenerationRequest(document_id=uuid.uuid4(), option_count=5).option_count == 5
+
+
+def test_generation_allows_up_to_300_quiz_questions() -> None:
+    payload = GenerationRequest(document_id=uuid.uuid4(), mcq_count=300, explanation_count=0, flashcard_count=0)
+    assert payload.mcq_count == 300
+    with pytest.raises(ValidationError):
+        GenerationRequest(document_id=uuid.uuid4(), mcq_count=301)
+    full = GenerationRequest(
+        document_id=uuid.uuid4(),
+        explanation_mode="full",
+        explanation_count=0,
+        mcq_count=0,
+        flashcard_count=0,
+    )
+    assert full.explanation_mode == "full"

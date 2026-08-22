@@ -8,10 +8,16 @@ export const fileRouter = {
   studyMaterial: upload({
     pdf: { maxFileSize: "16MB", maxFileCount: 1 },
     image: { maxFileSize: "8MB", maxFileCount: 1 },
+    text: { maxFileSize: "8MB", maxFileCount: 1 },
+    blob: { maxFileSize: "16MB", maxFileCount: 1 },
   })
-    .middleware(async () => {
+    .middleware(async ({ files }) => {
       const session = (await cookies()).get("access_token");
       if (!session) throw new UploadThingError("Sign in before uploading");
+      const name = files[0]?.name?.toLowerCase() ?? "";
+      if (!/\.(pdf|png|jpe?g|webp|txt|pptx)$/.test(name)) {
+        throw new UploadThingError("Use a PDF, photo, TXT, or PPTX file");
+      }
       return { authenticated: true };
     })
     .onUploadComplete(async ({ file }) => ({

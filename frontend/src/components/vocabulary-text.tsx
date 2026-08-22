@@ -23,15 +23,19 @@ export function VocabularyText({ text, enabled }: { text: string; enabled: boole
 
   return (
     <span className="relative">
-      {text.split(/(\s+)/).map((part, index) => {
-        const plain = part.replace(/[^\p{L}-]/gu, "");
-        const complex = enabled && plain.length >= 9;
-        return complex ? (
-          <button key={`${part}-${index}`} onClick={() => define(plain)} className="rounded bg-indigo-500/10 text-[var(--primary)] underline decoration-dotted underline-offset-4">
-            {part}{loading === plain && <Icon icon={Loading03Icon} className="ml-1 inline animate-spin" size={12} />}
-          </button>
-        ) : <span key={`${part}-${index}`}>{part}</span>;
-      })}
+      {enabled
+        ? text.split(/(\s+)/).map((part, index) => {
+            const plain = part.replace(/[^\p{L}-]/gu, "");
+            const complex = plain.length >= 9;
+            return complex ? (
+              <button key={`${part}-${index}`} onClick={() => define(plain)} className="rounded bg-indigo-500/10 text-[var(--primary)] underline decoration-dotted underline-offset-4">
+                {part}{loading === plain && <Icon icon={Loading03Icon} className="ml-1 inline animate-spin" size={12} />}
+              </button>
+            ) : (
+              <span key={`${part}-${index}`}>{part}</span>
+            );
+          })
+        : text}
       {definition && (
         <span className="card absolute left-0 top-full z-20 mt-3 block w-72 p-4 text-left shadow-2xl">
           <span className="flex items-center gap-2 font-extrabold"><Icon icon={Bookmark02Icon} size={16} className="text-[var(--primary)]" />{definition.word}</span>

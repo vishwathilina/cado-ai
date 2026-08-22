@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-embeddings = ["fastembed>=0.7"]
+embeddings = ["sentence-transformers>=3.4"]
 ocr = ["pytesseract>=0.3.13", "pillow>=11.1"]
 dev = ["aiosqlite>=0.21", "pytest>=8.3", "pytest-asyncio>=0.25", "ruff>=0.9"]
 

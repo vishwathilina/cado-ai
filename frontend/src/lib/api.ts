@@ -6,6 +6,7 @@ export type StudyItem = {
   answer: string;
   options: string[] | null;
   explanation: string | null;
+  full_explanation?: string | null;
 };
 
 export type StudySet = {
@@ -14,6 +15,36 @@ export type StudySet = {
   language: string;
   created_at: string;
   items: StudyItem[];
+  explanation_count?: number;
+  flashcard_count?: number;
+  mcq_count?: number;
+};
+
+export type TutorImage = {
+  url: string;
+  caption: string;
+  credit: string;
+};
+
+export type TutorCitation = {
+  n: number;
+  kind: "notes" | "web" | string;
+  title: string;
+  snippet: string;
+  quote: string;
+  page: number | null;
+  url: string | null;
+};
+
+export type TutorReply = {
+  reply: string;
+  image: TutorImage | null;
+  origin: "notes" | "web" | string;
+  citations: TutorCitation[];
+  document_url: string | null;
+  document_title: string;
+  mime_type: string;
+  elapsed_ms: number;
 };
 
 export type DocumentRecord = {
@@ -25,16 +56,18 @@ export type DocumentRecord = {
   created_at: string;
 };
 
-function csrfToken() {
+const noRefresh = new Set(["/auth/login", "/auth/register", "/auth/refresh", "/auth/logout"]);
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+export function csrfToken() {
   if (typeof document === "undefined") return "";
-  return document.cookie
-    .split("; ")
-    .find((entry) => entry.startsWith("csrf_token="))
-    ?.split("=")[1] ?? "";
+  const entry = document.cookie.split("; ").find((item) => item.startsWith("csrf_token="));
+  return entry ? decodeURIComponent(entry.slice("csrf_token=".length)) : "";
 }
 
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/backend${path}`, {
+function request(path: string, init?: RequestInit) {
+  return fetch(`/api/backend${path}`, {
     ...init,
     credentials: "include",
     headers: {
@@ -43,17 +76,67 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   });
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({ detail: "Something went wrong" }));
-    const detail = body.detail;
-    const message =
-      typeof detail === "string"
-        ? detail
-        : Array.isArray(detail)
-          ? detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join(" ")
-          : "Something went wrong";
-    throw new Error(message || "Something went wrong");
+}
+
+async function refreshSession() {
+  if (!refreshInFlight) {
+    refreshInFlight = request("/auth/refresh", { method: "POST" })
+      .then((response) => response.ok)
+      .finally(() => {
+        refreshInFlight = null;
+      });
   }
+  return refreshInFlight;
+}
+
+import { safeQuizNext } from "@/lib/next-path";
+
+function goToLogin() {
+  if (typeof window === "undefined" || window.location.pathname.startsWith("/login")) return;
+  const next = safeQuizNext(window.location.pathname);
+  window.location.assign(next ? `/login?next=${encodeURIComponent(next)}` : "/login");
+}
+
+async function readError(response: Response) {
+  const body = await response.json().catch(() => ({ detail: "Something went wrong" }));
+  const detail = body.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((item: { msg?: string }) => item.msg).filter(Boolean).join(" ") || "Something went wrong";
+  }
+  return "Something went wrong";
+}
+
+async function parseResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) throw new Error(await readError(response));
   if (response.status === 204) return undefined as T;
   return response.json();
+}
+
+const inflightGets = new Map<string, Promise<unknown>>();
+
+export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method === "GET") {
+    const pending = inflightGets.get(path);
+    if (pending) return pending as Promise<T>;
+  }
+  const pending = sendApi<T>(path, init);
+  if (method === "GET") {
+    inflightGets.set(path, pending);
+    void pending.finally(() => {
+      if (inflightGets.get(path) === pending) inflightGets.delete(path);
+    });
+  }
+  return pending;
+}
+
+async function sendApi<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await request(path, init);
+  if (response.status === 401 && !noRefresh.has(path.split("?")[0] ?? path)) {
+    if (await refreshSession()) return parseResponse<T>(await request(path, init));
+    goToLogin();
+    throw new Error("Please sign in again");
+  }
+  return parseResponse<T>(response);
 }

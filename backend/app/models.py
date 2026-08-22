@@ -89,7 +89,7 @@ class DocumentChunk(Base):
     position: Mapped[int] = mapped_column(Integer)
     content: Mapped[str] = mapped_column(Text)
     page_number: Mapped[int | None] = mapped_column(Integer)
-    embedding: Mapped[list[float]] = mapped_column(Vector(384).with_variant(JSONType(), "sqlite"))
+    embedding: Mapped[list[float]] = mapped_column(Vector(1024).with_variant(JSONType(), "sqlite"))
 
 
 class StudySet(Base):
@@ -121,6 +121,8 @@ class StudyItem(Base):
     answer: Mapped[str] = mapped_column(Text)
     options: Mapped[list[str] | None] = mapped_column(JSON)
     explanation: Mapped[str | None] = mapped_column(Text)
+    option_explanations: Mapped[list[dict] | None] = mapped_column(JSON)
+    full_explanation: Mapped[str | None] = mapped_column(Text)
     source_chunk_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
 
 
@@ -169,9 +171,10 @@ class StudyPlan(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(255), default="My study plan")
+    start_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     tasks: Mapped[list["StudyTask"]] = relationship(
-        cascade="all, delete-orphan", order_by="StudyTask.due_date"
+        cascade="all, delete-orphan", order_by="StudyTask.position"
     )
 
 
@@ -183,6 +186,7 @@ class StudyTask(Base):
     title: Mapped[str] = mapped_column(String(255))
     due_date: Mapped[date] = mapped_column(Date)
     minutes: Mapped[int] = mapped_column(Integer, default=20)
+    position: Mapped[int] = mapped_column(Integer, default=0)
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -207,3 +211,23 @@ class VocabularyLookup(Base):
     definition: Mapped[str] = mapped_column(Text)
     pronunciation: Mapped[str | None] = mapped_column(String(100))
     example: Mapped[str | None] = mapped_column(Text)
+
+
+class Achievement(Base):
+    __tablename__ = "achievements"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    achieved_on: Mapped[date] = mapped_column(Date, default=date.today)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Countdown(Base):
+    __tablename__ = "countdowns"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    title: Mapped[str] = mapped_column(String(255))
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

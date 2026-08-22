@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
 
+export const maxDuration = 300;
+
 async function proxy(request: NextRequest, path: string[]) {
   const target = `${backendUrl}/${path.join("/")}${request.nextUrl.search}`;
   const headers = new Headers(request.headers);

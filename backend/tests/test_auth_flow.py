@@ -66,6 +66,9 @@ def test_documents_are_isolated_by_owner(client) -> None:
 
     document_id = asyncio.run(seed())
     assert client.get(f"/documents/{document_id}").status_code == 200
+    retry = client.post(f"/documents/{document_id}/retry", headers=csrf_headers(client))
+    assert retry.status_code == 200
+    assert retry.json()["status"] == "ready"
 
     with TestClient(app) as outsider:
         register(outsider, email="other@example.com")

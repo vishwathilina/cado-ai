@@ -16,7 +16,7 @@ export function PageHeader({
     <header className="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p className="kicker">{kicker}</p>
-        <h1 className="mt-1 text-3xl font-black tracking-tight md:text-4xl">{title}</h1>
+        <h1 className="font-display mt-1 text-3xl font-semibold tracking-tight md:text-4xl">{title}</h1>
         {subtitle && <p className="muted mt-2 max-w-2xl leading-7">{subtitle}</p>}
       </div>
       {action}

@@ -1,6 +1,6 @@
 # Cado AI
 
-Cado AI turns a student's PDFs and photographed notes into short explanations, interactive
+Cado AI turns a student's PDFs, PowerPoint decks, text files, and photographed notes into short explanations, interactive
 4–5 option quizzes, animated flashcards, vocabulary help, and a personalized study plan.
 
 ## Stack
@@ -9,7 +9,7 @@ Cado AI turns a student's PDFs and photographed notes into short explanations, i
 - FastAPI, SQLAlchemy 2, Alembic, secure cookie JWT sessions
 - Neon PostgreSQL with pgvector
 - PyMuPDF and Tesseract OCR
-- Local MiniLM embeddings (`all-MiniLM-L6-v2`, 384-d) and an OpenAI-compatible text model
+- Local `BAAI/bge-m3` embeddings (1024-d) and an OpenAI-compatible text model
 
 The retrieval pipeline is intentionally direct rather than LlamaIndex-based: extraction,
 chunking, embedding, vector retrieval, and typed generation are small isolated services.
@@ -64,8 +64,9 @@ Git ignores both real env files. Only `.env.example` templates are tracked.
 - `AI_MODEL` must support JSON response mode through an OpenAI-compatible Chat Completions API.
 - Never expose `AI_API_KEY`, Neon credentials, or `UPLOADTHING_TOKEN` through `NEXT_PUBLIC_*`.
 - Set `COOKIE_SECURE=true` in production and use HTTPS.
-- `sentence-transformers/all-MiniLM-L6-v2` creates 384-dimensional vectors via ONNX (no PyTorch).
-  Changing the embedding model can require a new vector column migration and full re-index.
+- `BAAI/bge-m3` creates 1024-dimensional vectors from the copy already on this machine
+  (`~/.cache/huggingface/hub`). The API will not download it again. Changing the embedding
+  model can require a new vector column migration and full re-index.
 
 ## Checks
 
@@ -80,8 +81,8 @@ AI/UploadThing responses. Unit tests intentionally avoid live paid services.
 ## Deployment
 
 Deploy the frontend to Vercel or any Node host. Deploy FastAPI to a persistent, worker-capable
-container host (Railway, Render, Fly.io, ECS, or similar). OCR is too memory/CPU heavy for most
-short-lived serverless functions; MiniLM embeddings stay small enough for a modest CPU worker.
+container host (Railway, Render, Fly.io, ECS, or similar). OCR and BGE-M3 embeddings are too
+memory/CPU heavy for most short-lived serverless functions.
 Set `BACKEND_URL` to the private/public backend origin available to Next.js.
 
 Run `alembic upgrade head` as a release step. For higher upload volume, move
