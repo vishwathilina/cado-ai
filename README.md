@@ -80,10 +80,16 @@ AI/UploadThing responses. Unit tests intentionally avoid live paid services.
 
 ## Deployment
 
-Deploy the frontend to Vercel or any Node host. Deploy FastAPI to a persistent, worker-capable
-container host (Railway, Render, Fly.io, ECS, or similar). OCR and BGE-M3 embeddings are too
-memory/CPU heavy for most short-lived serverless functions.
-Set `BACKEND_URL` to the private/public backend origin available to Next.js.
+Deploy the frontend to Vercel or Netlify. This app is not a static export: `/dashboard`,
+`/learn/...`, and `/api/backend/...` need the Next.js runtime. On Netlify use the included
+`netlify.toml` (publish `.next`, plugin `@netlify/plugin-nextjs`). If the site shows Netlify’s
+“Page not found”, the publish directory is wrong or the Next.js plugin is missing — set **Base
+directory** to `frontend`, **Publish** to `.next`, then clear cache and redeploy. Set `BACKEND_URL`
+to the FastAPI origin.
+
+Deploy FastAPI to a persistent, worker-capable container host (Railway, Render, Fly.io, ECS, or
+similar). OCR and BGE-M3 embeddings are too memory/CPU heavy for most short-lived serverless
+functions.
 
 Run `alembic upgrade head` as a release step. For higher upload volume, move
 `ingest_document` from FastAPI background tasks to a durable worker queue and replace the
