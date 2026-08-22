@@ -39,13 +39,21 @@ type Countdown = {
   ends_at: string;
 };
 
+type WeakTopic = {
+  id: string;
+  title: string;
+  set_id: string;
+  set_title: string;
+  misses: number;
+};
+
 type Dashboard = {
   name: string;
   email: string;
   streak: number;
   accuracy: number;
   quizzes_completed: number;
-  weak_topics: string[];
+  weak_topics: WeakTopic[];
   recent_sets: StudyCard[];
   study_plans: StudyPlan[];
   study_plan: StudyPlan & { id: string | null };
@@ -191,29 +199,57 @@ export default function DashboardPage() {
 
       <div className="rounded-2xl bg-[var(--surface)] p-4">
         <p className="mb-3 font-semibold">{data.weak_topics.length ? "Needs review" : "Your stats"}</p>
-        {(data.weak_topics.length
-          ? data.weak_topics.map((topic, index) => ({
-              rank: index + 1,
-              title: topic,
-              meta: "Missed in quizzes",
-            }))
-          : [
-              { rank: 1, title: `${data.streak} day streak`, meta: "Keep it going" },
-              { rank: 2, title: `${data.accuracy}% accuracy`, meta: "Across scored quizzes" },
-              { rank: 3, title: `${data.quizzes_completed} quizzes`, meta: "Completed so far" },
-            ]
-        ).map((row) => (
-          <div key={row.rank} className="flex items-center gap-3 py-2">
-            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--surface-2)] text-sm font-semibold">
-              {row.title.slice(0, 1).toUpperCase()}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{row.title}</p>
-              <p className="muted truncate text-xs">{row.meta}</p>
-            </div>
-            <span className="muted text-sm font-semibold">#{row.rank}</span>
+        {data.weak_topics.length ? (
+          <div className="flex flex-col">
+            {data.weak_topics.map((topic, index) => (
+              <Link key={topic.id} href={`/quiz/${topic.set_id}`} className="dash-review">
+                <span className="dash-review-rank">#{index + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-2 text-sm font-semibold leading-snug">{topic.title}</p>
+                  <p className="muted mt-0.5 text-xs">
+                    {topic.set_title} · missed {topic.misses}×
+                  </p>
+                </div>
+                <span className="dash-review-go">
+                  Retry <Icon icon={ArrowRight01Icon} size={14} />
+                </span>
+              </Link>
+            ))}
           </div>
-        ))}
+        ) : (
+          <div className="flex flex-col">
+            <Link href="/history" className="dash-review">
+              <span className="dash-review-rank">{data.streak}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Day streak</p>
+                <p className="muted text-xs">See everything you’ve generated</p>
+              </div>
+              <span className="dash-review-go">
+                History <Icon icon={ArrowRight01Icon} size={14} />
+              </span>
+            </Link>
+            <Link href="/history" className="dash-review">
+              <span className="dash-review-rank">{data.accuracy}%</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Quiz accuracy</p>
+                <p className="muted text-xs">Across scored quizzes</p>
+              </div>
+              <span className="dash-review-go">
+                Review <Icon icon={ArrowRight01Icon} size={14} />
+              </span>
+            </Link>
+            <Link href="/upload" className="dash-review">
+              <span className="dash-review-rank">{data.quizzes_completed}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold">Quizzes done</p>
+                <p className="muted text-xs">Upload notes for another set</p>
+              </div>
+              <span className="dash-review-go">
+                Upload <Icon icon={ArrowRight01Icon} size={14} />
+              </span>
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="mt-5 rounded-2xl bg-[var(--surface)] p-4">

@@ -153,17 +153,34 @@ async def _latest_attempts(db: AsyncSession, user_id, set_ids: list) -> dict:
 
 
 async def _weak_topics(db: AsyncSession, user_id):
-    return list(
-        await db.scalars(
-            select(StudyItem.prompt)
+    rows = (
+        await db.execute(
+            select(
+                StudyItem.id,
+                StudyItem.prompt,
+                StudyItem.study_set_id,
+                StudySet.title,
+                func.count(QuizAnswer.id).label("misses"),
+            )
             .join(QuizAnswer, QuizAnswer.item_id == StudyItem.id)
             .join(QuizAttempt, QuizAttempt.id == QuizAnswer.attempt_id)
+            .join(StudySet, StudySet.id == StudyItem.study_set_id)
             .where(QuizAttempt.user_id == user_id, QuizAnswer.is_correct.is_(False))
-            .group_by(StudyItem.prompt)
+            .group_by(StudyItem.id, StudyItem.prompt, StudyItem.study_set_id, StudySet.title)
             .order_by(func.count(QuizAnswer.id).desc())
             .limit(3)
         )
-    )
+    ).all()
+    return [
+        {
+            "id": str(row.id),
+            "title": row.prompt,
+            "set_id": str(row.study_set_id),
+            "set_title": row.title,
+            "misses": int(row.misses),
+        }
+        for row in rows
+    ]
 
 
 async def _month_achievements(db: AsyncSession, user_id):

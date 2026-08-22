@@ -929,6 +929,40 @@ html.plan-dragging {
   color: #fff;
 }
 
+.dash-review {
+  align-items: flex-start;
+  border-radius: .85rem;
+  color: inherit;
+  display: flex;
+  gap: .7rem;
+  margin: 0 -.45rem;
+  padding: .65rem .45rem;
+}
+
+.dash-review:hover {
+  background: var(--surface-2);
+}
+
+.dash-review-rank {
+  color: var(--muted);
+  flex-shrink: 0;
+  font-size: .72rem;
+  font-weight: 750;
+  padding-top: .15rem;
+  width: 1.4rem;
+}
+
+.dash-review-go {
+  align-items: center;
+  color: var(--primary);
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: .72rem;
+  font-weight: 700;
+  gap: .15rem;
+  padding-top: .15rem;
+}
+
 .dash-day {
   align-items: center;
   background: transparent;
