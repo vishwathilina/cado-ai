@@ -33,5 +33,6 @@ next-env.d.ts
 # Local leftovers
 /src/
 /3451fa028d26bc19436bebb7392973fb.webp
+/demo-video-clips/
 
 buildbeyond.md
