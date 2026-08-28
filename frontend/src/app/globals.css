@@ -613,6 +613,152 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   position: relative;
 }
 
+.plan-sort {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  display: inline-flex;
+  padding: .18rem;
+}
+
+.plan-sort button {
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 700;
+  padding: .32rem .7rem;
+}
+
+.plan-sort button.is-on {
+  background: #1c1c1c;
+  color: #fff;
+}
+
+.dark .plan-sort button.is-on {
+  background: #fff;
+  color: #1c1c1c;
+}
+
+.plan-day-head {
+  margin-bottom: .55rem;
+}
+
+.plan-day-top {
+  align-items: center;
+  display: flex;
+  gap: .65rem;
+}
+
+.plan-day-toggle {
+  align-items: center;
+  display: inline-flex;
+  gap: .35rem;
+  min-width: 0;
+  text-align: left;
+}
+
+.plan-day-chevron {
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform .15s ease;
+}
+
+.plan-day-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.plan-day.is-collapsed {
+  opacity: .86;
+}
+
+.plan-day.is-collapsed .plan-day-head {
+  margin-bottom: 0;
+}
+
+.plan-day-head.is-selected .plan-day-date {
+  color: #f3803b;
+}
+
+.plan-day-date {
+  font-size: .92rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.plan-day-add {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--foreground);
+  display: inline-flex;
+  font-size: .72rem;
+  font-weight: 700;
+  gap: .28rem;
+  padding: .22rem .7rem;
+}
+
+.plan-day-add:hover {
+  background: color-mix(in srgb, var(--surface-2) 60%, var(--border));
+}
+
+.plan-day-today {
+  border-color: color-mix(in srgb, #f3803b 40%, var(--border));
+  color: #f3803b;
+}
+
+.plan-day-today:hover {
+  background: color-mix(in srgb, #f3803b 14%, var(--surface-2));
+}
+
+.plan-day-form {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-bottom: .7rem;
+}
+
+.plan-day-meta {
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 600;
+  margin-top: .18rem;
+}
+
+.plan-day-fill {
+  align-items: center;
+  display: flex;
+  gap: .55rem;
+  margin-top: .4rem;
+}
+
+.plan-day-fill-track {
+  background: var(--surface-2);
+  border-radius: 999px;
+  flex: 1;
+  height: .42rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.plan-day-fill-track span {
+  background: #f3803b;
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  transition: width .4s linear;
+}
+
+.plan-day-fill-pct {
+  color: var(--muted);
+  font-size: .72rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  min-width: 2.35rem;
+  text-align: right;
+}
+
 .plan-task:hover:not(.is-active):not(.is-float) {
   background: color-mix(in srgb, var(--surface-2) 70%, transparent);
 }
@@ -740,6 +886,16 @@ html.plan-dragging {
   height: 2rem;
   place-items: center;
   width: 2rem;
+}
+
+.plan-task-actions .task-today {
+  border: 1px solid color-mix(in srgb, #f3803b 40%, var(--border));
+  border-radius: 999px;
+  color: #f3803b;
+  font-size: .68rem;
+  font-weight: 700;
+  padding: 0 .55rem;
+  width: auto;
 }
 
 .plan-session {

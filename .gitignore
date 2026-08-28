@@ -8,6 +8,7 @@
 !**/.env*.example
 backend/.env copy.example
 
+demo-video-clips
 # Python
 .venv/
 **/__pycache__/

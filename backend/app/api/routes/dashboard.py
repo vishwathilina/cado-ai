@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 from datetime import UTC, date, datetime, timedelta
 
@@ -8,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import current_user
-from app.database import SessionLocal, engine, get_db
+from app.database import get_db
 from app.models import (
     Achievement,
     ContentType,
@@ -136,17 +135,30 @@ async def _question_counts(db: AsyncSession, set_ids: list):
 
 
 async def _latest_attempts(db: AsyncSession, user_id, set_ids: list) -> dict:
-    latest: dict = {}
     if not set_ids:
-        return latest
-    for attempt in await db.scalars(
-        select(QuizAttempt)
+        return {}
+    latest_at = (
+        select(
+            QuizAttempt.study_set_id,
+            func.max(QuizAttempt.completed_at).label("completed_at"),
+        )
         .where(
             QuizAttempt.user_id == user_id,
             QuizAttempt.study_set_id.in_(set_ids),
             QuizAttempt.completed_at.is_not(None),
         )
-        .order_by(QuizAttempt.completed_at.desc())
+        .group_by(QuizAttempt.study_set_id)
+        .subquery()
+    )
+    latest: dict = {}
+    for attempt in await db.scalars(
+        select(QuizAttempt)
+        .join(
+            latest_at,
+            (QuizAttempt.study_set_id == latest_at.c.study_set_id)
+            & (QuizAttempt.completed_at == latest_at.c.completed_at),
+        )
+        .where(QuizAttempt.user_id == user_id)
     ):
         latest.setdefault(attempt.study_set_id, attempt)
     return latest
@@ -210,71 +222,21 @@ async def _countdowns(db: AsyncSession, user_id):
     )
 
 
-async def _run(loader):
-    async with SessionLocal() as session:
-        return await loader(session)
-
-
 @router.get("/dashboard")
 async def dashboard(
     user: User = Depends(current_user), db: AsyncSession = Depends(get_db)
 ) -> dict:
     user_id = user.id
-
-    async def stats(session):
-        return await _quiz_stats(session, user_id)
-
-    async def streaks(session):
-        return await _streak_dates(session, user_id)
-
-    async def recents(session):
-        return await _recent_sets(session, user_id)
-
-    async def plans_loader(session):
-        return await load_user_plans(session, user_id)
-
-    async def achievements_loader(session):
-        return await _month_achievements(session, user_id)
-
-    async def countdowns_loader(session):
-        return await _countdowns(session, user_id)
-
-    async def weak_loader(session):
-        return await _weak_topics(session, user_id)
-
-    if engine.dialect.name == "sqlite":
-        totals = await stats(db)
-        activity = await streaks(db)
-        recent = await recents(db)
-        plans = await plans_loader(db)
-        achievements = await achievements_loader(db)
-        countdowns = await countdowns_loader(db)
-        weak_topics = await weak_loader(db)
-        set_ids = [item.id for item in recent]
-        question_counts = await _question_counts(db, set_ids)
-        latest_attempts = await _latest_attempts(db, user_id, set_ids)
-    else:
-        totals, activity, recent, plans, achievements, countdowns, weak_topics = await asyncio.gather(
-            _run(stats),
-            _run(streaks),
-            _run(recents),
-            _run(plans_loader),
-            _run(achievements_loader),
-            _run(countdowns_loader),
-            _run(weak_loader),
-        )
-        set_ids = [item.id for item in recent]
-
-        async def counts_loader(session):
-            return await _question_counts(session, set_ids)
-
-        async def attempts_loader(session):
-            return await _latest_attempts(session, user_id, set_ids)
-
-        question_counts, latest_attempts = await asyncio.gather(
-            _run(counts_loader),
-            _run(attempts_loader),
-        )
+    totals = await _quiz_stats(db, user_id)
+    activity = await _streak_dates(db, user_id)
+    recent = await _recent_sets(db, user_id)
+    plans = await load_user_plans(db, user_id)
+    achievements = await _month_achievements(db, user_id)
+    countdowns = await _countdowns(db, user_id)
+    weak_topics = await _weak_topics(db, user_id)
+    set_ids = [item.id for item in recent]
+    question_counts = await _question_counts(db, set_ids)
+    latest_attempts = await _latest_attempts(db, user_id, set_ids)
 
     latest = plans[0] if plans else None
     completed, score_sum, total_sum = totals

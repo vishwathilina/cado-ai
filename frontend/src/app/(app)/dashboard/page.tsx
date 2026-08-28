@@ -107,10 +107,19 @@ export default function DashboardPage() {
 
   async function load() {
     try {
-      setData(await api<Dashboard>("/dashboard"));
+      const payload = await api<Dashboard>("/dashboard");
+      setData((current) => (current ? { ...payload, study_plans: current.study_plans } : payload));
+      setError("");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not load dashboard");
     }
+  }
+
+  function applyPlans(update: (plans: StudyPlan[]) => StudyPlan[]) {
+    setData((current) => {
+      if (!current) return current;
+      return { ...current, study_plans: update(current.study_plans) };
+    });
   }
 
   useEffect(() => {
@@ -148,6 +157,21 @@ export default function DashboardPage() {
   const maxPage = Math.max(0, Math.ceil(filtered.length / pageSize) - 1);
   const visible = filtered.slice(page * pageSize, page * pageSize + pageSize);
   const days = useMemo(() => weekDays(), []);
+  const weekStart = isoDate(days[0]);
+  const weekEnd = isoDate(days[6]);
+  const weekTasks = useMemo(
+    () =>
+      (data?.study_plans ?? [])
+        .flatMap((plan) => plan.tasks)
+        .filter((task) => {
+          const due = isoDate(task.due_date);
+          return due >= weekStart && due <= weekEnd;
+        }),
+    [data, weekStart, weekEnd],
+  );
+  const weekDone = weekTasks.filter((task) => task.completed).length;
+  const weekPct = weekTasks.length ? Math.round((weekDone / weekTasks.length) * 100) : 0;
+  const weekLabel = `${days[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
   const quizHref = nextSet && nextSet.question_count > 0 ? `/quiz/${nextSet.id}` : nextSet ? `/learn/${nextSet.id}` : "/upload";
 
   useEffect(() => {
@@ -159,7 +183,7 @@ export default function DashboardPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  if (error) return <div className="p-6 md:p-8"><div className="card p-6 text-[var(--danger)]">{error}</div></div>;
+  if (error && !data) return <div className="p-6 md:p-8"><div className="card p-6 text-[var(--danger)]">{error}</div></div>;
   if (!data) {
     return (
       <div className="grid gap-4 p-6 md:p-8 xl:grid-cols-[1fr_19rem]">
@@ -266,7 +290,7 @@ export default function DashboardPage() {
                   aria-label="Remove countdown"
                   onClick={async () => {
                     await api(`/countdowns/${item.id}`, { method: "DELETE" });
-                    await load();
+                    void load();
                   }}
                 >
                   ×
@@ -292,7 +316,7 @@ export default function DashboardPage() {
               });
               setCountdownTitle("");
               setCountdownDate(isoDate());
-              await load();
+              void load();
             } catch (reason) {
               setError(reason instanceof Error ? reason.message : "Could not add countdown");
             }
@@ -307,6 +331,21 @@ export default function DashboardPage() {
           <DatePicker value={countdownDate} onChange={setCountdownDate} min={isoDate()} className="min-w-0" />
           <button className="btn-primary py-2 text-sm" type="submit">Add</button>
         </form>
+      </div>
+
+      <div className="mt-5 rounded-2xl bg-[var(--surface)] p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="font-semibold">This week</p>
+          <span className="rounded-full bg-[#f3803b] px-2.5 py-1 text-[11px] font-semibold text-white">{weekLabel}</span>
+        </div>
+        {weekTasks.length ? (
+          <div className="dash-progress flex items-center gap-3">
+            <div className="flex-1"><ProgressBar value={weekPct} /></div>
+            <span className="text-sm font-semibold">{weekPct}%</span>
+          </div>
+        ) : (
+          <p className="muted text-sm">Plan tasks will count toward this week.</p>
+        )}
       </div>
 
       <div className="mt-5 rounded-2xl bg-[var(--surface)] p-4">
@@ -337,7 +376,7 @@ export default function DashboardPage() {
                 body: JSON.stringify({ title: newAchievement.trim(), achieved_on: selectedDate }),
               });
               setNewAchievement("");
-              await load();
+              void load();
             } catch (reason) {
               setError(reason instanceof Error ? reason.message : "Could not add achievement");
             }
@@ -363,7 +402,7 @@ export default function DashboardPage() {
                   aria-label="Remove achievement"
                   onClick={async () => {
                     await api(`/achievements/${item.id}`, { method: "DELETE" });
-                    await load();
+                    void load();
                   }}
                 >
                   ×
@@ -506,7 +545,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-          <StudyPlans plans={data.study_plans} selectedDate={selectedDate} onChange={load} />
+          <StudyPlans plans={data.study_plans} selectedDate={selectedDate} onChange={load} onPlansChange={applyPlans} />
         </section>
       </div>
 
