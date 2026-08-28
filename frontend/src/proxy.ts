@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { safeQuizNext } from "@/lib/next-path";
 
 export function proxy(request: NextRequest) {
-  const authenticated = request.cookies.has("refresh_token") || request.cookies.has("access_token");
+  const hasAccess = request.cookies.has("access_token");
+  const authenticated = hasAccess || request.cookies.has("refresh_token");
   const authPage = request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/register";
   const protectedPage = ["/dashboard", "/upload", "/learn", "/quiz", "/history"].some((path) =>
     request.nextUrl.pathname.startsWith(path),
@@ -13,7 +14,7 @@ export function proxy(request: NextRequest) {
     if (next) login.searchParams.set("next", next);
     return NextResponse.redirect(login);
   }
-  if (authPage && authenticated) {
+  if (authPage && hasAccess) {
     const next = safeQuizNext(request.nextUrl.searchParams.get("next"));
     return NextResponse.redirect(new URL(next || "/dashboard", request.url));
   }

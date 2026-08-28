@@ -37,13 +37,22 @@ def test_refresh_rotates_token_and_rejects_reuse(client) -> None:
     client.cookies.set("refresh_token", first_refresh)
     reused = client.post("/auth/refresh", headers=csrf_headers(client))
     assert reused.status_code == 401
+    assert not reused.cookies.get("refresh_token")
+    assert not reused.cookies.get("access_token")
 
 
 def test_csrf_is_required_for_mutations(client) -> None:
     register(client)
-    response = client.post("/auth/logout")
+    response = client.post("/achievements", json={"title": "Win"})
     assert response.status_code == 403
     assert response.json()["detail"] == "CSRF check failed"
+
+
+def test_logout_clears_cookies_without_csrf(client) -> None:
+    register(client)
+    logout = client.post("/auth/logout")
+    assert logout.status_code == 204
+    assert client.get("/auth/me").status_code == 401
 
 
 def test_documents_are_isolated_by_owner(client) -> None:

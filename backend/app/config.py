@@ -31,8 +31,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/cado"
     frontend_url: str = "http://localhost:3000"
     jwt_secret: str = Field("development-only-change-this-secret", min_length=32)
-    access_token_minutes: int = 15
-    refresh_token_days: int = 30
+    access_token_minutes: int = 1440
+    refresh_token_days: int = 1
     cookie_secure: bool = False
     ai_base_url: str = "https://api.openai.com/v1"
     ai_api_key: str = ""

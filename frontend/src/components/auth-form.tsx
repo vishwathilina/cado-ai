@@ -2,7 +2,7 @@
 
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 import { BrandMark, CadoBuddy } from "@/components/cado-buddy";
 import { Icon } from "@/components/icon";
@@ -18,7 +18,6 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 }
 
 function AuthFormInner({ mode }: { mode: "login" | "register" }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const next = safeQuizNext(searchParams.get("next"));
   const nextQuery = next ? `?next=${encodeURIComponent(next)}` : "";
@@ -39,8 +38,7 @@ function AuthFormInner({ mode }: { mode: "login" | "register" }) {
           ...(mode === "register" ? { name: form.get("name") } : {}),
         }),
       });
-      router.push(next || "/dashboard");
-      router.refresh();
+      window.location.replace(next || "/dashboard");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to continue");
     } finally {

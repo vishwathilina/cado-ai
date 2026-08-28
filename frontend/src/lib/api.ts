@@ -59,6 +59,7 @@ export type DocumentRecord = {
 const noRefresh = new Set(["/auth/login", "/auth/register", "/auth/refresh", "/auth/logout"]);
 
 let refreshInFlight: Promise<boolean> | null = null;
+let sentToLogin = false;
 
 export function csrfToken() {
   if (typeof document === "undefined") return "";
@@ -89,12 +90,12 @@ async function refreshSession() {
   return refreshInFlight;
 }
 
-import { safeQuizNext } from "@/lib/next-path";
-
 function goToLogin() {
-  if (typeof window === "undefined" || window.location.pathname.startsWith("/login")) return;
-  const next = safeQuizNext(window.location.pathname);
-  window.location.assign(next ? `/login?next=${encodeURIComponent(next)}` : "/login");
+  if (typeof window === "undefined" || sentToLogin) return;
+  const path = window.location.pathname;
+  if (path.startsWith("/login") || path.startsWith("/register")) return;
+  sentToLogin = true;
+  window.location.replace("/login");
 }
 
 async function readError(response: Response) {

@@ -36,7 +36,16 @@ app.add_middleware(
 )
 
 rate_buckets: dict[str, deque[float]] = defaultdict(deque)
-csrf_exempt_prefixes = ("/auth/login", "/auth/register", "/health", "/ready", "/docs", "/openapi.json")
+csrf_exempt_prefixes = (
+    "/auth/login",
+    "/auth/register",
+    "/auth/logout",
+    "/auth/refresh",
+    "/health",
+    "/ready",
+    "/docs",
+    "/openapi.json",
+)
 rate_limited_prefixes = ("/auth", "/study-sets/generate", "/vocabulary", "/diagnostics")
 
 

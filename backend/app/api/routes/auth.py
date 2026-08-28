@@ -1,6 +1,7 @@
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,12 +23,16 @@ from app.utils import as_utc
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def set_session_cookies(response: Response, user: User, refresh: str, csrf: str) -> None:
-    common = {
+def cookie_options() -> dict:
+    return {
         "secure": settings.cookie_secure,
         "samesite": "lax",
         "path": "/",
     }
+
+
+def set_session_cookies(response: Response, user: User, refresh: str, csrf: str) -> None:
+    common = cookie_options()
     response.set_cookie(
         "access_token",
         create_access_token(user.id),
@@ -49,6 +54,19 @@ def set_session_cookies(response: Response, user: User, refresh: str, csrf: str)
         max_age=settings.refresh_token_days * 86400,
         **common,
     )
+
+
+def clear_session_cookies(response: Response) -> None:
+    common = cookie_options()
+    response.delete_cookie("access_token", httponly=True, **common)
+    response.delete_cookie("refresh_token", httponly=True, **common)
+    response.delete_cookie("csrf_token", httponly=False, **common)
+
+
+def expired_session(detail: str, status_code: int = 401) -> JSONResponse:
+    response = JSONResponse({"detail": detail}, status_code=status_code)
+    clear_session_cookies(response)
+    return response
 
 
 async def create_session(db: AsyncSession, response: Response, user: User) -> None:
@@ -99,15 +117,17 @@ async def refresh(
     csrf_cookie: str | None = Cookie(default=None, alias="csrf_token"),
     x_csrf_token: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
-) -> User:
+) -> User | JSONResponse:
     if not refresh_token or not csrf_cookie or csrf_cookie != x_csrf_token:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "CSRF check failed")
+        return expired_session("Refresh session expired")
     session = await db.scalar(
         select(RefreshSession).where(RefreshSession.token_hash == hash_token(refresh_token))
     )
     if not session or session.revoked_at or as_utc(session.expires_at) <= datetime.now(UTC):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh session expired")
+        return expired_session("Refresh session expired")
     user = await db.get(User, session.user_id)
+    if not user:
+        return expired_session("Refresh session expired")
     session.revoked_at = datetime.now(UTC)
     await create_session(db, response, user)
     return user
@@ -126,8 +146,7 @@ async def logout(
         if session:
             session.revoked_at = datetime.now(UTC)
             await db.commit()
-    for name in ("access_token", "refresh_token", "csrf_token"):
-        response.delete_cookie(name, path="/")
+    clear_session_cookies(response)
 
 
 @router.get("/me", response_model=UserView)
