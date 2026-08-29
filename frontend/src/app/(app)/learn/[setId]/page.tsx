@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icon";
 import { FadeIn, pageEase } from "@/components/page-transition";
 import { CadoTutor } from "@/components/cado-tutor";
+import { MindMap } from "@/components/mind-map";
 import { VocabularyText } from "@/components/vocabulary-text";
 import { api, StudyItem, StudySet } from "@/lib/api";
 
@@ -33,6 +34,7 @@ export default function LearnPage() {
   const [fullById, setFullById] = useState<Record<string, string>>({});
   const [fullLoading, setFullLoading] = useState<string | null>(null);
   const [fullError, setFullError] = useState("");
+  const [mindView, setMindView] = useState<"list" | "map">("map");
 
   useEffect(() => {
     api<StudySet>(`/study-sets/${setId}`)
@@ -47,6 +49,20 @@ export default function LearnPage() {
   const explanations = useMemo(() => studySet?.items.filter((item) => item.kind === "explanation") ?? [], [studySet]);
   const cards = useMemo(() => studySet?.items.filter((item) => item.kind === "flashcard") ?? [], [studySet]);
   const hasQuiz = studySet?.items.some((item) => item.kind === "mcq") ?? false;
+  const isFullAZ = useMemo(() => {
+    if (!explanations.length) return false;
+    // Full mode stores full_explanation = answer (short notes A-Z)
+    return explanations.some((e) => e.full_explanation !== null && e.full_explanation !== undefined);
+  }, [explanations]);
+  const mindItems = useMemo(
+    () =>
+      explanations.map((e) => ({
+        id: e.id,
+        prompt: e.prompt,
+        answer: fullById[e.id] || e.full_explanation || e.answer,
+      })),
+    [explanations, fullById],
+  );
 
   useEffect(() => {
     if (searchParams.get("ask") === "1") setTab("tutor");
@@ -181,30 +197,76 @@ export default function LearnPage() {
 
       {tab === "explanation" && (
         <section className="space-y-4">
-          {explanations.map((item, index) => (
-            <FadeIn key={item.id} delay={index * 0.05}>
-              <article className="card p-6 md:p-8">
-                <p className="kicker mb-3">Concept {index + 1}</p>
-                <h3 className="text-xl font-extrabold">{item.prompt}</h3>
-                <p className="mt-4 text-[1.05rem] leading-8">
-                  <VocabularyText text={fullById[item.id] || item.full_explanation || item.answer} enabled={vocabulary} />
-                </p>
-                {!item.full_explanation && !fullById[item.id] && (
+          {isFullAZ ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--surface-2)] p-2">
+                <div className="flex gap-1">
                   <button
                     type="button"
-                    className="btn-secondary mt-4 py-2 text-sm"
-                    disabled={fullLoading === item.id}
-                    onClick={() => void expandExplanation(item)}
+                    onClick={() => setMindView("map")}
+                    className={`rounded-lg px-4 py-2 text-sm font-bold ${mindView === "map" ? "bg-[var(--surface)] shadow text-[var(--foreground)]" : "text-[var(--muted)]"}`}
                   >
-                    {fullLoading === item.id ? "Writing…" : "Full explain"}
+                    Mind Map
                   </button>
-                )}
-                {fullError && fullLoading === null && (
-                  <p className="mt-2 text-sm text-[var(--danger)]">{fullError}</p>
-                )}
-              </article>
-            </FadeIn>
-          ))}
+                  <button
+                    type="button"
+                    onClick={() => setMindView("list")}
+                    className={`rounded-lg px-4 py-2 text-sm font-bold ${mindView === "list" ? "bg-[var(--surface)] shadow text-[var(--foreground)]" : "text-[var(--muted)]"}`}
+                  >
+                    Short Notes List
+                  </button>
+                </div>
+                <p className="hidden sm:block text-xs font-semibold muted px-2">Full · A-Z · {explanations.length} notes</p>
+              </div>
+
+              {mindView === "map" ? (
+                <MindMap title={studySet.title} items={mindItems} />
+              ) : (
+                <div className="space-y-4">
+                  {explanations.map((item, index) => (
+                    <FadeIn key={item.id} delay={index * 0.03}>
+                      <article className="card p-6 md:p-7">
+                        <p className="kicker mb-2">
+                          {String.fromCharCode(65 + (index % 26))} · Note {index + 1} / {explanations.length}
+                        </p>
+                        <h3 className="text-lg font-extrabold leading-snug">{item.prompt}</h3>
+                        <p className="mt-3 text-[1.02rem] leading-7">
+                          <VocabularyText text={fullById[item.id] || item.full_explanation || item.answer} enabled={vocabulary} />
+                        </p>
+                      </article>
+                    </FadeIn>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {explanations.map((item, index) => (
+                <FadeIn key={item.id} delay={index * 0.05}>
+                  <article className="card p-6 md:p-8">
+                    <p className="kicker mb-3">Concept {index + 1}</p>
+                    <h3 className="text-xl font-extrabold">{item.prompt}</h3>
+                    <p className="mt-4 text-[1.05rem] leading-8">
+                      <VocabularyText text={fullById[item.id] || item.full_explanation || item.answer} enabled={vocabulary} />
+                    </p>
+                    {!item.full_explanation && !fullById[item.id] && (
+                      <button
+                        type="button"
+                        className="btn-secondary mt-4 py-2 text-sm"
+                        disabled={fullLoading === item.id}
+                        onClick={() => void expandExplanation(item)}
+                      >
+                        {fullLoading === item.id ? "Writing…" : "Full explain"}
+                      </button>
+                    )}
+                    {fullError && fullLoading === null && (
+                      <p className="mt-2 text-sm text-[var(--danger)]">{fullError}</p>
+                    )}
+                  </article>
+                </FadeIn>
+              ))}
+            </>
+          )}
           {!!cards.length && (
             <button onClick={() => setTab("flashcard")} className="btn-primary">
               Next: flashcards <Icon icon={ArrowRight01Icon} size={16} />

@@ -342,7 +342,8 @@ async def generate_study_set(
     budget = min(80, 22 + max(0, payload.mcq_count - 10) // 5)
     chunks = await _source_chunks(db, document.id, query_text, whole, budget)
     if payload.explanation_mode == "full":
-        explanation_count = min(10, max(3, min(len(chunks) or 3, 8)))
+        # A-Z short notes: cover whole doc, need more items than normal (5-8)
+        explanation_count = min(8, max(5, min(len(chunks) or 5, 8)))
     else:
         explanation_count = payload.explanation_count
     source = _source_text(chunks[:22] if len(chunks) > 22 else chunks)

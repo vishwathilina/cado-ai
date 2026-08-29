@@ -137,19 +137,33 @@ export default function UploadPage() {
 
   async function generateFromDocument(id: string) {
     setStatusNote("The model is writing explanations, flashcards, and quiz questions. This can take a minute.");
-    const studySet = await api<StudySet>("/study-sets/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        document_id: id,
-        language,
-        explanation_count: outputs.explanation ? (explanationMode === "full" ? 0 : counts.explanation) : 0,
-        explanation_mode: outputs.explanation ? explanationMode : "count",
-        mcq_count: outputs.mcq ? counts.mcq : 0,
-        flashcard_count: outputs.flashcard ? counts.flashcard : 0,
-        option_count: optionCount,
-        focus: focus.trim() || null,
-      }),
-    });
+    const payload = {
+      document_id: id,
+      language,
+      explanation_count: outputs.explanation ? (explanationMode === "full" ? 0 : counts.explanation) : 0,
+      explanation_mode: outputs.explanation ? explanationMode : "count",
+      mcq_count: outputs.mcq ? counts.mcq : 0,
+      flashcard_count: outputs.flashcard ? counts.flashcard : 0,
+      option_count: optionCount,
+      focus: focus.trim() || null,
+    };
+    let studySet: StudySet;
+    try {
+      studySet = await api<StudySet>("/study-sets/generate", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      const isShape = msg.toLowerCase().includes("wrong shape");
+      if (!isShape) throw err;
+      setStatusNote("Model hiccup — retrying once automatically…");
+      await new Promise((r) => setTimeout(r, 1200));
+      studySet = await api<StudySet>("/study-sets/generate", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
     setProgress(100);
     setStatusNote("Done. Opening your set…");
     router.push(outputs.explanation || outputs.flashcard ? `/learn/${studySet.id}` : `/quiz/${studySet.id}`);
@@ -332,7 +346,11 @@ export default function UploadPage() {
                   />
                   <label htmlFor={`output-${format.key}`} className="min-w-0 cursor-pointer">
                     <span className="block font-semibold leading-snug">{format.label}</span>
-                    <span className="muted mt-0.5 block text-xs leading-snug">{format.hint}</span>
+                    <span className="muted mt-0.5 block text-xs leading-snug">
+                      {format.key === "explanation" && outputs.explanation && explanationMode === "full"
+                        ? "A-Z short notes + mind map — entire doc condensed"
+                        : format.hint}
+                    </span>
                     {format.key === "explanation" && outputs.explanation && (
                       <span className="mode-toggle mt-2">
                         <button
@@ -353,9 +371,14 @@ export default function UploadPage() {
                         </button>
                       </span>
                     )}
+                    {format.key === "explanation" && outputs.explanation && explanationMode === "full" && (
+                      <span className="mt-1.5 block text-[11px] leading-snug font-medium text-[var(--primary)]">
+                        5–10 short notes (2–4 lines each) + interactive graph · Auto count
+                      </span>
+                    )}
                   </label>
                   {format.key === "explanation" && explanationMode === "full" ? (
-                    <span className="muted text-xs font-semibold">Auto</span>
+                    <span className="muted text-xs font-bold whitespace-nowrap px-1">Auto · A-Z</span>
                   ) : (
                     <input
                       type="number"

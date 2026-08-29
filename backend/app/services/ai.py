@@ -182,6 +182,13 @@ class AIService:
         try:
             return schema.model_validate(parse_json_object(content))
         except ValidationError as exc:
+            # One automatic retry without json_mode — often fixes shape issues with smaller models
+            try:
+                retry = await self._complete(system, user, json_mode=False, temperature=temperature, max_tokens=max_tokens)
+                if retry.strip():
+                    return schema.model_validate(parse_json_object(retry))
+            except Exception:
+                pass
             raise AIResponseError("The study model returned JSON in the wrong shape. Try generate again.") from exc
 
     async def generate_study_set(
@@ -196,7 +203,7 @@ class AIService:
         avoid_prompts: list[str] | None = None,
     ) -> GeneratedPayload:
         explanation_rule = (
-            "answer: 8–14 sentences that fully teach the idea from SOURCE, with definitions, how it works, and a concrete example"
+            "answer: 2-4 short sentences, short-note style, concise definition plus key point plus example if needed. Keep plain sentences, no bullet hyphens. Together all explanations must cover the whole document from start to finish in order, like A-Z short notes for the entire syllabus (every major heading and idea)"
             if explanation_style == "full"
             else "answer: 3–6 sentences that teach the idea clearly, using terms from SOURCE"
         )
@@ -209,8 +216,10 @@ Create a study set in {language}. Use SOURCE only. If SOURCE does not support a 
 
 Quality over filler. Every item must help a student check real understanding of these notes.
 {avoid}
-Return JSON only:
-{{"title":"...", "items":[{{"kind":"explanation|mcq|flashcard","prompt":"...","answer":"...","options":["..."],"explanation":"..."}}]}}
+Return JSON only with this exact shape:
+{{"title":"...","items":[{{"kind":"explanation","prompt":"...","answer":"..."}},{{"kind":"flashcard","prompt":"...","answer":"..."}},{{"kind":"mcq","prompt":"...","answer":"...","options":["a","b","c","d"],"explanation":"..."}}]}}
+- for kind=explanation or flashcard, use only prompt and answer (no options, no explanation)
+- for kind=mcq, use prompt, answer, options, explanation
 
 Counts (aim for these; never invent extra kinds):
 - {explanation_count} explanations
@@ -219,7 +228,7 @@ Counts (aim for these; never invent extra kinds):
 If SOURCE is thin, return fewer items of a kind rather than padding. Do not add a kind whose count is 0.
 
 Explanations:
-- prompt: a specific concept heading from the notes
+- prompt: a short heading for the idea (3-8 words) — when style is "full", order prompts logically start to finish so they read as A-Z short notes for the whole document
 - {explanation_rule}
 
 Flashcards:
