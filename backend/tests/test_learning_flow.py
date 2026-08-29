@@ -1,7 +1,7 @@
 import asyncio
 import time
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import select
 
@@ -214,6 +214,58 @@ def test_manage_multiple_plans(client, monkeypatch) -> None:
     removed_plan = client.delete(f"/study-plans/{plan_id}", headers=headers)
     assert removed_plan.status_code == 204
     assert len(client.get("/dashboard").json()["study_plans"]) == 1
+
+
+def test_study_sessions_sum_today_and_store_note(client) -> None:
+    register(client)
+    headers = csrf_headers(client)
+    blank = client.post("/study-plans/blank", json={"title": "Focus week"}, headers=headers)
+    plan_id = blank.json()["id"]
+    added = client.post(
+        f"/study-plans/{plan_id}/tasks",
+        json={"title": "Pomodoro", "minutes": 25},
+        headers=headers,
+    )
+    task_id = added.json()["tasks"][0]["id"]
+    today = date.today().isoformat()
+    start = datetime(2026, 8, 28, 10, 0, tzinfo=timezone.utc)
+    first = client.post(
+        "/study-sessions",
+        json={
+            "task_id": task_id,
+            "started_at": start.isoformat(),
+            "ended_at": start.replace(minute=25).isoformat(),
+            "day": today,
+            "note": "Covered mitochondria.",
+        },
+        headers=headers,
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["minutes"] == 25
+    assert first.json()["note"] == "Covered mitochondria."
+    second = client.post(
+        "/study-sessions",
+        json={
+            "task_id": task_id,
+            "started_at": start.replace(hour=14).isoformat(),
+            "ended_at": start.replace(hour=14, minute=20).isoformat(),
+            "day": today,
+        },
+        headers=headers,
+    )
+    assert second.status_code == 200
+    assert second.json()["minutes"] == 20
+    listed = client.get(f"/study-sessions/today?day={today}", headers=headers)
+    assert listed.status_code == 200
+    assert listed.json()["minutes"] == 45
+    assert listed.json()["sessions"][0]["note"] == "Covered mitochondria."
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    other_day = client.get(f"/study-sessions/today?day={yesterday}", headers=headers)
+    assert other_day.json()["minutes"] == 0
+    dashboard = client.get("/dashboard").json()
+    assert dashboard["studied_today_minutes"] == 45
+    task = next(item for plan in dashboard["study_plans"] for item in plan["tasks"] if item["id"] == task_id)
+    assert task["note"] == "Covered mitochondria."
 
 
 def test_plan_dates_and_achievements(client) -> None:

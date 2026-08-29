@@ -25,6 +25,7 @@ export type PlanTask = {
   minutes: number;
   completed: boolean;
   position?: number;
+  note?: string | null;
 };
 
 export type StudyPlan = {
@@ -178,11 +179,13 @@ function dayStats(tasks: PlanTask[]) {
 export function StudyPlans({
   plans,
   selectedDate,
+  studiedTodayMinutes = 0,
   onChange,
   onPlansChange,
 }: {
   plans: StudyPlan[];
   selectedDate: string;
+  studiedTodayMinutes?: number;
   onChange: () => Promise<void>;
   onPlansChange: (update: (plans: StudyPlan[]) => StudyPlan[]) => void;
 }) {
@@ -198,6 +201,8 @@ export function StudyPlans({
   const [newMinutes, setNewMinutes] = useState(20);
   const [newDate, setNewDate] = useState(selectedDate);
   const [session, setSession] = useState<Session | null>(null);
+  const [sessionNote, setSessionNote] = useState("");
+  const [studiedMinutes, setStudiedMinutes] = useState(studiedTodayMinutes);
   const [now, setNow] = useState(() => Date.now());
   const [sortBy, setSortBy] = useState<SortMode>("plan");
   const [dateOrder, setDateOrder] = useState<Record<string, string[]>>({});
@@ -247,6 +252,22 @@ export function StudyPlans({
   useEffect(() => {
     setNewDate(selectedDate);
   }, [selectedDate]);
+
+  useEffect(() => {
+    setStudiedMinutes(studiedTodayMinutes);
+  }, [studiedTodayMinutes]);
+
+  useEffect(() => {
+    let active = true;
+    api<{ minutes: number }>(`/study-sessions/today?day=${isoDate()}`)
+      .then((payload) => {
+        if (active) setStudiedMinutes(payload.minutes);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (selectedDate >= isoDate()) return;
@@ -562,12 +583,38 @@ export function StudyPlans({
   function startTask(task: PlanTask) {
     chimed.current = false;
     setStopAsk(null);
+    setSessionNote("");
     setSession({
       taskId: task.id,
       startedAt: Date.now(),
       durationMs: Math.max(1, task.minutes) * 60 * 1000,
     });
     playSound("/event.mp3");
+  }
+
+  async function saveSession(note: string) {
+    if (!session) return;
+    const endedAt = Date.now();
+    const guess = Math.max(0, Math.round((endedAt - session.startedAt) / 60000));
+    const text = note.trim();
+    if (text) patchTask(session.taskId, { note: text });
+    setStudiedMinutes((current) => current + guess);
+    try {
+      const saved = await api<{ minutes: number }>("/study-sessions", {
+        method: "POST",
+        body: JSON.stringify({
+          task_id: session.taskId,
+          started_at: new Date(session.startedAt).toISOString(),
+          ended_at: new Date(endedAt).toISOString(),
+          day: isoDate(),
+          note: note.trim() || null,
+        }),
+      });
+      setStudiedMinutes((current) => current - guess + saved.minutes);
+    } catch (reason) {
+      setStudiedMinutes((current) => Math.max(0, current - guess));
+      setError(reason instanceof Error ? reason.message : "Could not save study time");
+    }
   }
 
   function requestStop() {
@@ -583,13 +630,14 @@ export function StudyPlans({
     startTask(task);
   }
 
-  function confirmStop() {
-    if (stopAsk?.kind === "switch") {
-      startTask(stopAsk.task);
-      return;
-    }
+  async function confirmStop() {
+    const next = stopAsk?.kind === "switch" ? stopAsk.task : null;
+    const note = sessionNote;
+    await saveSession(note);
     setSession(null);
     setStopAsk(null);
+    setSessionNote("");
+    if (next) startTask(next);
   }
 
   async function addTime(task: PlanTask, extra: number) {
@@ -607,6 +655,9 @@ export function StudyPlans({
   async function completeTask(task: PlanTask) {
     if (!chimed.current) playSound("/luxury.mp3");
     chimed.current = true;
+    if (session?.taskId === task.id) {
+      await saveSession(sessionNote);
+    }
     if (!task.completed) {
       patchTask(task.id, { completed: true });
       await mutate(
@@ -616,6 +667,7 @@ export function StudyPlans({
     }
     setSession(null);
     setStopAsk(null);
+    setSessionNote("");
   }
 
   function toggleTask(task: PlanTask) {
@@ -786,6 +838,7 @@ export function StudyPlans({
       : tasks.find((task) => task.id === dragId) ?? null
     : null;
   const today = isoDate(new Date(now));
+  const liveStudied = session ? Math.max(0, Math.floor((now - session.startedAt) / 60000)) : 0;
 
   function renderTask(
     task: PlanTask,
@@ -849,6 +902,7 @@ export function StudyPlans({
                   {task.title}
                 </p>
                 <p className="plan-task-meta">{options.meta}</p>
+                {task.note ? <p className="plan-task-note">{task.note}</p> : null}
               </div>
             )}
             <div className="plan-task-actions">
@@ -899,6 +953,17 @@ export function StudyPlans({
                 <span>{clock(session.startedAt)}</span>
                 <span>{clock(endsAt)}</span>
               </div>
+              <label className="plan-session-note-label">
+                Add a note (optional)
+                <textarea
+                  value={sessionNote}
+                  onChange={(event) => setSessionNote(event.target.value)}
+                  maxLength={500}
+                  rows={2}
+                  placeholder="What did you cover?"
+                  className="plan-session-note"
+                />
+              </label>
               {asking && stopAsk ? (
                 <div className="plan-session-ask">
                   <p className="text-sm font-semibold">
@@ -949,6 +1014,9 @@ export function StudyPlans({
               Date
             </button>
           </div>
+          <p className="plan-studied" aria-live="polite">
+            Studied today <strong>{formatHoursMinutes(studiedMinutes + liveStudied)}</strong>
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setCreating(creating === "blank" ? null : "blank")} className="btn-secondary py-2 text-sm">
@@ -1213,6 +1281,7 @@ export function StudyPlans({
                       ? `${floatTask.planTitle} · ${floatTask.minutes} min`
                       : `${dueLabel(floatTask.due_date)} · ${floatTask.minutes} min`}
                   </p>
+                  {floatTask.note ? <p className="plan-task-note">{floatTask.note}</p> : null}
                 </div>
               </div>
             </div>

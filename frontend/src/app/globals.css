@@ -639,6 +639,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   color: #1c1c1c;
 }
 
+.plan-studied {
+  color: var(--muted);
+  font-size: .78rem;
+  font-weight: 600;
+}
+
+.plan-studied strong {
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
 .plan-day-head {
   margin-bottom: .55rem;
 }
@@ -874,6 +885,18 @@ html.plan-dragging {
   margin-top: .12rem;
 }
 
+.plan-task-note {
+  color: var(--foreground);
+  font-size: .78rem;
+  line-height: 1.4;
+  margin-top: .28rem;
+  opacity: .78;
+}
+
+.plan-task.is-done .plan-task-note {
+  text-decoration: none;
+}
+
 .plan-task-actions {
   display: flex;
   flex-shrink: 0;
@@ -944,7 +967,35 @@ html.plan-dragging {
   font-variant-numeric: tabular-nums;
   font-weight: 650;
   justify-content: space-between;
-  margin: .45rem 0 1rem;
+  margin: .45rem 0 .7rem;
+}
+
+.plan-session-note-label {
+  color: var(--muted);
+  display: grid;
+  font-size: .72rem;
+  font-weight: 650;
+  gap: .35rem;
+  margin-bottom: .85rem;
+}
+
+.plan-session-note {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: .75rem;
+  color: var(--foreground);
+  font: inherit;
+  font-size: .85rem;
+  font-weight: 500;
+  min-height: 3.4rem;
+  padding: .6rem .75rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.plan-session-note:focus {
+  border-color: var(--primary);
+  outline: none;
 }
 
 .plan-session-ask {

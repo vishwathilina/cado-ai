@@ -189,6 +189,19 @@ class StudyTask(Base):
     position: Mapped[int] = mapped_column(Integer, default=0)
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sessions: Mapped[list["StudySession"]] = relationship(cascade="all, delete-orphan")
+
+
+class StudySession(Base):
+    __tablename__ = "study_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    task_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("study_tasks.id", ondelete="CASCADE"), index=True)
+    activity_date: Mapped[date] = mapped_column(Date, index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    note: Mapped[str | None] = mapped_column(String(500))
 
 
 class StreakEvent(Base):

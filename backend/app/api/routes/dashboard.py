@@ -17,6 +17,7 @@ from app.models import (
     StreakEvent,
     StudyItem,
     StudyPlan,
+    StudySession,
     StudySet,
     StudyTask,
     User,
@@ -27,6 +28,7 @@ from app.schemas import (
     CountdownCreate,
     PlanRequest,
     PlanTitleUpdate,
+    StudySessionCreate,
     TaskCreate,
     TaskReorder,
     TaskUpdate,
@@ -35,6 +37,15 @@ from app.services.ai import AIResponseError, ai_service
 from app.utils import calculate_streak
 
 router = APIRouter(tags=["dashboard"])
+
+
+def latest_session_note(task: StudyTask) -> str | None:
+    notes = [
+        item.note.strip()
+        for item in sorted(task.sessions, key=lambda item: item.ended_at)
+        if item.note and item.note.strip()
+    ]
+    return notes[-1] if notes else None
 
 
 def plan_payload(plan: StudyPlan) -> dict:
@@ -52,10 +63,14 @@ def plan_payload(plan: StudyPlan) -> dict:
                 "minutes": task.minutes,
                 "completed": task.completed,
                 "position": task.position,
+                "note": latest_session_note(task),
             }
             for task in tasks
         ],
     }
+
+
+_TASKS_WITH_SESSIONS = selectinload(StudyPlan.tasks).selectinload(StudyTask.sessions)
 
 
 async def load_user_plans(db: AsyncSession, user_id) -> list[StudyPlan]:
@@ -63,7 +78,7 @@ async def load_user_plans(db: AsyncSession, user_id) -> list[StudyPlan]:
         await db.scalars(
             select(StudyPlan)
             .where(StudyPlan.user_id == user_id)
-            .options(selectinload(StudyPlan.tasks))
+            .options(_TASKS_WITH_SESSIONS)
             .order_by(StudyPlan.created_at.desc())
         )
     )
@@ -73,7 +88,7 @@ async def load_owned_plan(db: AsyncSession, plan_id: uuid.UUID, user_id) -> Stud
     plan = await db.scalar(
         select(StudyPlan)
         .where(StudyPlan.id == plan_id, StudyPlan.user_id == user_id)
-        .options(selectinload(StudyPlan.tasks))
+        .options(_TASKS_WITH_SESSIONS)
         .execution_options(populate_existing=True)
     )
     if not plan:
@@ -280,6 +295,7 @@ async def dashboard(
             }
             for item in countdowns
         ],
+        "studied_today_minutes": await studied_minutes_for_day(db, user_id, date.today()),
     }
 
 
@@ -450,6 +466,76 @@ async def owned_task(db: AsyncSession, task_id: uuid.UUID, user_id) -> StudyTask
     if not task:
         raise HTTPException(404, "Task not found")
     return task
+
+
+def session_minutes(started_at: datetime, ended_at: datetime) -> int:
+    seconds = max(0, (ended_at - started_at).total_seconds())
+    return max(0, round(seconds / 60))
+
+
+def session_payload(item: StudySession) -> dict:
+    return {
+        "id": str(item.id),
+        "task_id": str(item.task_id),
+        "day": item.activity_date,
+        "started_at": item.started_at,
+        "ended_at": item.ended_at,
+        "minutes": session_minutes(item.started_at, item.ended_at),
+        "note": item.note,
+    }
+
+
+async def studied_minutes_for_day(db: AsyncSession, user_id, day: date) -> int:
+    rows = list(
+        await db.scalars(
+            select(StudySession).where(StudySession.user_id == user_id, StudySession.activity_date == day)
+        )
+    )
+    return sum(session_minutes(item.started_at, item.ended_at) for item in rows)
+
+
+@router.post("/study-sessions")
+async def create_study_session(
+    payload: StudySessionCreate,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    await owned_task(db, payload.task_id, user.id)
+    started = payload.started_at
+    ended = payload.ended_at
+    if ended < started:
+        raise HTTPException(400, "Session ended before it started")
+    note = payload.note.strip() if payload.note else None
+    item = StudySession(
+        user_id=user.id,
+        task_id=payload.task_id,
+        activity_date=payload.day or date.today(),
+        started_at=started,
+        ended_at=ended,
+        note=note or None,
+    )
+    db.add(item)
+    await db.commit()
+    await db.refresh(item)
+    return session_payload(item)
+
+
+@router.get("/study-sessions/today")
+async def list_today_sessions(
+    day: date | None = None,
+    user: User = Depends(current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    on = day or date.today()
+    rows = list(
+        await db.scalars(
+            select(StudySession)
+            .where(StudySession.user_id == user.id, StudySession.activity_date == on)
+            .order_by(StudySession.started_at)
+        )
+    )
+    sessions = [session_payload(item) for item in rows]
+    return {"day": on, "minutes": sum(item["minutes"] for item in sessions), "sessions": sessions}
 
 
 @router.post("/achievements")

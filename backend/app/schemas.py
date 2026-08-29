@@ -208,6 +208,14 @@ class TaskReorder(BaseModel):
     task_ids: list[uuid.UUID] = Field(min_length=1)
 
 
+class StudySessionCreate(BaseModel):
+    task_id: uuid.UUID
+    started_at: datetime
+    ended_at: datetime
+    day: date | None = None
+    note: str | None = Field(None, max_length=500)
+
+
 class OptionExplain(BaseModel):
     text: str
     correct: bool

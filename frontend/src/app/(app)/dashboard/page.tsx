@@ -55,8 +55,9 @@ type Dashboard = {
   quizzes_completed: number;
   weak_topics: WeakTopic[];
   recent_sets: StudyCard[];
-  study_plans: StudyPlan[];
+  studied_today_minutes: number;
   study_plan: StudyPlan & { id: string | null };
+  study_plans: StudyPlan[];
   achievements: Achievement[];
   countdowns: Countdown[];
 };
@@ -545,7 +546,13 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-          <StudyPlans plans={data.study_plans} selectedDate={selectedDate} onChange={load} onPlansChange={applyPlans} />
+          <StudyPlans
+            plans={data.study_plans}
+            selectedDate={selectedDate}
+            studiedTodayMinutes={data.studied_today_minutes ?? 0}
+            onChange={load}
+            onPlansChange={applyPlans}
+          />
         </section>
       </div>
 
