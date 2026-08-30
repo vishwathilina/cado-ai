@@ -33,6 +33,45 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const quiz = pathname.startsWith("/quiz");
   const dashboard = pathname === "/dashboard";
+  const editorial = pathname === "/upload" || pathname === "/history";
+  const glassScene = dashboard || editorial;
+
+  const glassRail = (
+    <aside className="app-rail-glass flex h-full w-[4.75rem] flex-col items-center py-5">
+      <Link href="/dashboard" className="mb-8" aria-label="Cado AI">
+        <BrandMark compact />
+      </Link>
+      <nav className="flex flex-col items-center gap-2">
+        {links.map(({ href, label, icon }) => {
+          const active = pathname.startsWith(href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              title={label}
+              aria-label={label}
+              className={`nav-rail-item ${active ? "is-active" : ""}`}
+            >
+              <Icon icon={icon} size={20} />
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="mt-auto flex flex-col items-center gap-2">
+        <button
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          className="nav-rail-item"
+          aria-label={resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
+          title={resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
+        >
+          {resolvedTheme === "dark" ? <Icon icon={Sun03Icon} size={20} /> : <Icon icon={Moon02Icon} size={20} />}
+        </button>
+        <button onClick={logout} className="nav-rail-item" aria-label="Log out" title="Log out">
+          <Icon icon={Logout01Icon} size={20} />
+        </button>
+      </div>
+    </aside>
+  );
 
   async function logout() {
     await api("/auth/logout", { method: "POST" });
@@ -118,8 +157,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="fixed inset-y-0 left-0 z-40 hidden md:block">{rail}</div>
+    <div className={`min-h-screen ${glassScene ? "app-shell-glass" : ""} ${editorial ? "app-shell-editorial" : ""}`}>
+      <div className="fixed inset-y-0 left-0 z-40 hidden md:block">
+        {glassScene ? glassRail : rail}
+      </div>
       <AnimatePresence>
         {open && (
           <motion.div
@@ -144,11 +185,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
       <div className="md:pl-[4.75rem]">
-        <header className="sticky top-0 z-30 flex h-14 items-center border-b bg-[var(--background)]/90 px-5 backdrop-blur md:hidden">
+        <header className={`sticky top-0 z-30 flex h-14 items-center border-b px-5 md:hidden ${glassScene ? "app-mobile-header" : "bg-[var(--background)]/90 backdrop-blur"}`}>
           <button onClick={() => setOpen(true)} aria-label="Open menu"><Icon icon={Menu01Icon} /></button>
           <span className="font-display ml-3 font-semibold">Cado AI</span>
         </header>
-        <main className={dashboard ? "min-h-[calc(100vh-3.5rem)] md:min-h-screen" : "mx-auto max-w-6xl p-5 md:p-9"}>
+        <main className={glassScene ? "app-main-glass min-h-[calc(100vh-3.5rem)] md:min-h-screen" : "mx-auto max-w-6xl p-5 md:p-9"}>
           {children}
         </main>
       </div>

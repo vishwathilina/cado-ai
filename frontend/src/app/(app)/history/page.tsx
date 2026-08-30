@@ -1,18 +1,12 @@
 "use client";
 
-import {
-  Add01Icon,
-  Clock01Icon,
-  File01Icon,
-  HelpCircleIcon,
-  SparklesIcon,
-} from "@hugeicons/core-free-icons";
+import { Add01Icon, Clock01Icon } from "@hugeicons/core-free-icons";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { CadoBuddy } from "@/components/cado-buddy";
+import { EditorialAppPage, EditorialHero } from "@/components/editorial/editorial-app-page";
 import { Icon } from "@/components/icon";
 import { FadeIn } from "@/components/page-transition";
-import { EmptyState, PageHeader } from "@/components/ui";
 import { api, StudySet } from "@/lib/api";
 
 function dayLabel(iso: string) {
@@ -60,98 +54,131 @@ export default function HistoryPage() {
     return [...buckets.entries()];
   }, [sets]);
 
-  if (error) return <div className="card p-6 text-[var(--danger)]">{error}</div>;
+  if (error) {
+    return (
+      <EditorialAppPage>
+        <div className="editorial-card p-6 text-red-700">{error}</div>
+      </EditorialAppPage>
+    );
+  }
+
   if (!sets) {
     return (
-      <div className="animate-pulse space-y-5">
-        <div className="soft h-24 rounded-3xl" />
-        <div className="soft h-40 rounded-3xl" />
-        <div className="soft h-40 rounded-3xl" />
-      </div>
+      <EditorialAppPage>
+        <div className="animate-pulse space-y-5">
+          <div className="editorial-card h-28" />
+          <div className="editorial-card h-40" />
+          <div className="editorial-card h-40" />
+        </div>
+      </EditorialAppPage>
     );
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
-      <PageHeader
+    <EditorialAppPage>
+      <EditorialHero
         kicker="Trail log"
         title="Everything you generated."
         subtitle="Reopen any set Cado made from your notes. Learn, quiz, or pick up where you left off."
         action={
-          <Link href="/upload" className="btn-primary">
-            <Icon icon={Add01Icon} size={18} /> New set
+          <Link href="/upload" className="editorial-btn-primary">
+            <Icon icon={Add01Icon} size={16} />
+            New set
           </Link>
         }
       />
 
       {!sets.length ? (
-        <section className="card grid gap-6 p-6 md:grid-cols-[1fr_140px] md:items-center">
-          <EmptyState
-            title="No generated sets yet."
-            copy="Upload a PDF or photo and Cado will keep it here so you can come back later."
-            href="/upload"
-            cta="Generate your first set"
-          />
-          <CadoBuddy size={140} message="I’ll keep the trail marked." />
+        <section className="editorial-card editorial-scene-band overflow-hidden">
+          <div className="relative aspect-[21/9] min-h-[14rem]">
+            <Image
+              src="/pixel-meadow.jpg"
+              alt="Pixel art meadow with poppies and wildflowers"
+              fill
+              className="object-cover"
+              sizes="(min-width: 768px) 72rem, 100vw"
+            />
+            <div className="absolute inset-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--background)_35%,transparent)] px-6">
+              <div className="editorial-empty-panel max-w-md p-8 text-center">
+                <p className="editorial-title text-3xl">No sets yet</p>
+                <p className="mt-3 text-sm leading-relaxed editorial-muted">
+                  Upload a PDF or photo and Cado will keep it here so you can come back later.
+                </p>
+                <Link href="/upload" className="editorial-btn-primary mt-6">
+                  Generate your first set
+                </Link>
+              </div>
+            </div>
+          </div>
         </section>
       ) : (
-        groups.map(([label, items]) => (
-          <section key={label} className="space-y-3">
-            <p className="kicker">{label}</p>
-            <div className="grid gap-4 md:grid-cols-2">
-            {items.map((set, index) => {
-              const tally = counts(set);
-              return (
-                <FadeIn key={set.id} delay={index * 0.05} className="h-full">
-                <article className="card flex h-full flex-col p-5">
-                  <p className="font-display text-lg font-semibold">{set.title}</p>
-                  <p className="muted mt-1 flex flex-wrap items-center gap-2 text-sm">
-                    <span className="inline-flex items-center gap-1">
-                      <Icon icon={Clock01Icon} size={14} />
-                      {new Date(set.created_at).toLocaleTimeString(undefined, {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </span>
-                    <span>· {set.language}</span>
-                  </p>
-                  <ul className="mt-4 flex flex-wrap gap-2">
-                    {tally.explanations > 0 && (
-                      <li className="soft inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold">
-                        <Icon icon={File01Icon} size={13} /> {tally.explanations} explanations
-                      </li>
-                    )}
-                    {tally.flashcards > 0 && (
-                      <li className="soft inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold">
-                        <Icon icon={SparklesIcon} size={13} /> {tally.flashcards} flashcards
-                      </li>
-                    )}
-                    {tally.questions > 0 && (
-                      <li className="soft inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold">
-                        <Icon icon={HelpCircleIcon} size={13} /> {tally.questions} quiz questions
-                      </li>
-                    )}
-                  </ul>
-                  <div className="mt-auto flex gap-2 pt-4">
-                    {(tally.explanations > 0 || tally.flashcards > 0) && (
-                      <Link href={`/learn/${set.id}`} className="btn-secondary flex-1 py-2 text-sm">
-                        Learn
-                      </Link>
-                    )}
-                    {tally.questions > 0 && (
-                      <Link href={`/quiz/${set.id}`} className="btn-primary flex-1 py-2 text-sm">
-                        Quiz
-                      </Link>
-                    )}
-                  </div>
-                </article>
-                </FadeIn>
-              );
-            })}
-            </div>
-          </section>
-        ))
+        <div className="space-y-10">
+          {groups.map(([label, items]) => (
+            <section key={label}>
+              <div className="editorial-day-label mb-4">
+                <span>{label}</span>
+                <span className="editorial-chip ml-auto shrink-0">{items.length}</span>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {items.map((set, index) => {
+                  const tally = counts(set);
+                  const total = tally.explanations + tally.flashcards + tally.questions;
+                  return (
+                    <FadeIn key={set.id} delay={index * 0.04} className="h-full">
+                      <article className="editorial-card editorial-set-card group">
+                        <div className="flex items-start justify-between gap-3">
+                          <h3 className="line-clamp-2 text-[17px] font-semibold leading-snug tracking-tight">{set.title}</h3>
+                          <span className="hidden h-7 w-7 shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--foreground)_6%,transparent)] text-[var(--muted)] group-hover:bg-[var(--foreground)] group-hover:text-[var(--background)] md:grid">
+                            <Icon icon={Clock01Icon} size={14} />
+                          </span>
+                        </div>
+                        <p className="mt-2 flex flex-wrap items-center gap-2 text-[13px] editorial-muted">
+                          <span className="editorial-chip">
+                            <Icon icon={Clock01Icon} size={12} />
+                            {new Date(set.created_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                          </span>
+                          <span className="text-xs">
+                            {set.language} · {total} items
+                          </span>
+                        </p>
+                        <ul className="mt-5 flex flex-wrap gap-2">
+                          {tally.explanations > 0 && (
+                            <li className="editorial-chip">
+                              <span className="size-1.5 rounded-full bg-emerald-600" /> {tally.explanations} notes
+                            </li>
+                          )}
+                          {tally.flashcards > 0 && (
+                            <li className="editorial-chip">
+                              <span className="size-1.5 rounded-full bg-amber-500" /> {tally.flashcards} cards
+                            </li>
+                          )}
+                          {tally.questions > 0 && (
+                            <li className="editorial-chip">
+                              <span className="size-1.5 rounded-full bg-indigo-500" /> {tally.questions} quiz
+                            </li>
+                          )}
+                        </ul>
+                        <div className="mt-6 flex gap-2">
+                          {(tally.explanations > 0 || tally.flashcards > 0) && (
+                            <Link href={`/learn/${set.id}`} className="editorial-btn-secondary flex-1 py-2.5 text-sm">
+                              Learn
+                            </Link>
+                          )}
+                          {tally.questions > 0 && (
+                            <Link href={`/quiz/${set.id}`} className="editorial-btn-primary flex-1 py-2.5 text-sm">
+                              Quiz →
+                            </Link>
+                          )}
+                        </div>
+                      </article>
+                    </FadeIn>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
       )}
-    </div>
+    </EditorialAppPage>
   );
 }

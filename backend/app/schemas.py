@@ -68,6 +68,24 @@ class GeneratedItem(BaseModel):
     answer: str = Field(min_length=1, max_length=8000)
     options: list[str] | None = None
     explanation: str | None = None
+    image_search_query: str | None = Field(None, max_length=80, description="2-6 words neutral visual for Google Images")
+    imageSearchQuery: str | None = Field(None, max_length=80)
+
+    @model_validator(mode="after")
+    def _normalize_image_query(self) -> "GeneratedItem":
+        # Accept either snake or camel, normalize to snake
+        raw = self.image_search_query or self.imageSearchQuery
+        if raw:
+            q = " ".join(raw.strip().split())[:80]
+            # reject placeholders
+            if q.lower() in {"", "none", "n/a", "na", "null"}:
+                q = None
+            self.image_search_query = q
+            self.imageSearchQuery = q
+        else:
+            self.image_search_query = None
+            self.imageSearchQuery = None
+        return self
 
     @model_validator(mode="after")
     def quality_checks(self) -> "GeneratedItem":
@@ -104,6 +122,23 @@ class StudyItemView(BaseModel):
     options: list[str] | None
     explanation: str | None
     full_explanation: str | None = None
+    image_search_query: str | None = None
+    image_url: str | None = None
+    imageSearchQuery: str | None = None
+    imageUrl: str | None = None
+
+    @model_validator(mode="after")
+    def _mirror_image_fields(self) -> "StudyItemView":
+        # Mirror snake <-> camel for frontend convenience
+        if self.image_search_query and not self.imageSearchQuery:
+            self.imageSearchQuery = self.image_search_query
+        if self.imageSearchQuery and not self.image_search_query:
+            self.image_search_query = self.imageSearchQuery
+        if self.image_url and not self.imageUrl:
+            self.imageUrl = self.image_url
+        if self.imageUrl and not self.image_url:
+            self.image_url = self.imageUrl
+        return self
 
 
 class StudySetView(BaseModel):

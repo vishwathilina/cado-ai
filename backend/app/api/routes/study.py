@@ -1,8 +1,10 @@
+import asyncio
+import logging
 import re
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -35,6 +37,8 @@ from app.services.embeddings import embed_texts
 from app.services.topics import detect_topic_domain
 from app.services.web_knowledge import find_reliable_passages
 from app.services.wikimedia import find_education_image
+
+logger = logging.getLogger(__name__)
 
 
 def _snippet(text: str, limit: int = 280) -> str:
@@ -201,6 +205,10 @@ def public_item(item: StudyItem) -> StudyItemView:
         options=item.options,
         explanation=None if hidden else item.explanation,
         full_explanation=None if hidden else item.full_explanation,
+        image_search_query=item.image_search_query,
+        image_url=item.image_url,
+        imageSearchQuery=item.image_search_query,
+        imageUrl=item.image_url,
     )
 
 
@@ -325,9 +333,24 @@ def _validate_mcqs(items: list, option_count: int) -> None:
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, "AI returned an invalid MCQ")
 
 
+async def _background_fetch_images(study_set_id: uuid.UUID) -> None:
+    """Background task: fetch Google Images for each explanation's imageSearchQuery (2 workers, 350ms delay)."""
+    try:
+        from app.database import SessionLocal
+        from app.services.google_images import fetch_and_persist_study_item_images
+
+        async with SessionLocal() as db:
+            updated = await fetch_and_persist_study_item_images(db, study_set_id)
+            if updated:
+                logger.info("Fetched %s context images for study_set %s", updated, study_set_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Background image fetch failed for %s: %s", study_set_id, exc)
+
+
 @router.post("/generate", response_model=StudySetView, status_code=status.HTTP_201_CREATED)
 async def generate_study_set(
     payload: GenerationRequest,
+    background_tasks: BackgroundTasks,
     user: User = Depends(current_user),
     db: AsyncSession = Depends(get_db),
 ) -> StudySetView:
@@ -420,6 +443,8 @@ async def generate_study_set(
                 explanation=item.explanation,
                 full_explanation=item.answer if full_mode and item.kind == ContentType.EXPLANATION else None,
                 source_chunk_ids=[str(chunk.id) for chunk in chunks],
+                image_search_query=(item.image_search_query or item.imageSearchQuery) if item.kind == ContentType.EXPLANATION else None,
+                image_url=None,
             )
             for index, item in enumerate(collected)
         ],
@@ -433,6 +458,10 @@ async def generate_study_set(
     )
     if not loaded:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Could not persist study set")
+    # Fire-and-forget context images: 2 workers, 350ms stagger, progress logged
+    # Don't block response — reader will show stored URL when ready (polls)
+    if any(i.image_search_query for i in loaded.items if i.kind == ContentType.EXPLANATION):
+        background_tasks.add_task(_background_fetch_images, loaded.id)
     return public_set(loaded)
 
 

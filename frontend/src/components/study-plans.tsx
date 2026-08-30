@@ -1005,7 +1005,6 @@ export function StudyPlans({
     <section>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <h3 className="text-xl font-semibold">Plans</h3>
           <div className="plan-sort" role="group" aria-label="Sort plans">
             <button type="button" className={sortBy === "plan" ? "is-on" : ""} aria-pressed={sortBy === "plan"} onClick={() => chooseSort("plan")}>
               Plan

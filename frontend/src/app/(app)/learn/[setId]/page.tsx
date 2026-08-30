@@ -16,6 +16,7 @@ import { Icon } from "@/components/icon";
 import { FadeIn, pageEase } from "@/components/page-transition";
 import { CadoTutor } from "@/components/cado-tutor";
 import { MindMap } from "@/components/mind-map";
+import { SectionImage } from "@/components/section-image";
 import { VocabularyText } from "@/components/vocabulary-text";
 import { api, StudyItem, StudySet } from "@/lib/api";
 
@@ -34,7 +35,6 @@ export default function LearnPage() {
   const [fullById, setFullById] = useState<Record<string, string>>({});
   const [fullLoading, setFullLoading] = useState<string | null>(null);
   const [fullError, setFullError] = useState("");
-  const [mindView, setMindView] = useState<"list" | "map">("map");
 
   useEffect(() => {
     api<StudySet>(`/study-sets/${setId}`)
@@ -60,9 +60,37 @@ export default function LearnPage() {
         id: e.id,
         prompt: e.prompt,
         answer: fullById[e.id] || e.full_explanation || e.answer,
+        imageSearchQuery: (e as any).imageSearchQuery || (e as any).image_search_query,
+        imageUrl: (e as any).imageUrl || (e as any).image_url,
       })),
     [explanations, fullById],
   );
+
+  // Poll for context images: Google fetch runs in background with 2 workers, 350ms stagger
+  const pendingImages = useMemo(
+    () => explanations.filter((e) => ((e as any).imageSearchQuery || (e as any).image_search_query) && !((e as any).imageUrl || (e as any).image_url)).length,
+    [explanations],
+  );
+
+  useEffect(() => {
+    if (!studySet || pendingImages === 0) return;
+    let alive = true;
+    let t: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      try {
+        const fresh = await api<StudySet>(`/study-sets/${setId}`);
+        if (!alive) return;
+        setStudySet(fresh);
+        const still = fresh.items.filter((it: any) => it.kind === "explanation" && (it.imageSearchQuery || it.image_search_query) && !(it.imageUrl || it.image_url)).length;
+        if (still > 0) t = setTimeout(tick, 2500);
+      } catch {}
+    };
+    t = setTimeout(tick, 2200);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [studySet, pendingImages, setId]);
 
   useEffect(() => {
     if (searchParams.get("ask") === "1") setTab("tutor");
@@ -196,59 +224,117 @@ export default function LearnPage() {
       </header>
 
       {tab === "explanation" && (
-        <section className="space-y-4">
+        <section className={isFullAZ ? "space-y-0" : "space-y-4"}>
           {isFullAZ ? (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--surface-2)] p-2">
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setMindView("map")}
-                    className={`rounded-lg px-4 py-2 text-sm font-bold ${mindView === "map" ? "bg-[var(--surface)] shadow text-[var(--foreground)]" : "text-[var(--muted)]"}`}
-                  >
-                    Mind Map
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMindView("list")}
-                    className={`rounded-lg px-4 py-2 text-sm font-bold ${mindView === "list" ? "bg-[var(--surface)] shadow text-[var(--foreground)]" : "text-[var(--muted)]"}`}
-                  >
-                    Short Notes List
-                  </button>
-                </div>
-                <p className="hidden sm:block text-xs font-semibold muted px-2">Full · A-Z · {explanations.length} notes</p>
+            <div className="mx-auto max-w-[800px]">
+              {/* Clean doc header */}
+              <div className="mb-3 text-xs muted">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" /> Last sync: Just now
+                  {pendingImages > 0 && <span className="ml-2 hidden sm:inline animate-pulse">· Finding images ({explanations.length - pendingImages}/{explanations.length})</span>}
+                  {pendingImages === 0 && explanations.some((e: any) => e.imageUrl || e.image_url) && <span className="ml-2 hidden sm:inline text-emerald-600">· Images ready</span>}
+                </span>
               </div>
 
-              {mindView === "map" ? (
-                <MindMap title={studySet.title} items={mindItems} />
-              ) : (
-                <div className="space-y-4">
-                  {explanations.map((item, index) => (
-                    <FadeIn key={item.id} delay={index * 0.03}>
-                      <article className="card p-6 md:p-7">
-                        <p className="kicker mb-2">
-                          {String.fromCharCode(65 + (index % 26))} · Note {index + 1} / {explanations.length}
-                        </p>
-                        <h3 className="text-lg font-extrabold leading-snug">{item.prompt}</h3>
-                        <p className="mt-3 text-[1.02rem] leading-7">
-                          <VocabularyText text={fullById[item.id] || item.full_explanation || item.answer} enabled={vocabulary} />
-                        </p>
-                      </article>
-                    </FadeIn>
-                  ))}
+              <article className="doc-helvetica overflow-hidden rounded-xl bg-[var(--surface)] shadow-sm">
+                {/* Title block */}
+                <div className="px-7 pb-3 pt-8 md:px-10 md:pt-10">
+                  <h1 className="text-3xl font-extrabold leading-[1.15] tracking-tight md:text-[36px]">{studySet.title}</h1>
                 </div>
-              )}
-            </>
+
+                {/* Intro paragraph — use first sentence of doc if available, else generic */}
+                <div className="px-7 md:px-10">
+                  <p className="border-b border-[var(--border)] pb-7 text-[16px] leading-8 muted md:text-[17px] md:leading-[1.9]">
+                    During the final design review, the team evaluated the condensed notes for <span className="font-bold text-[var(--foreground)]">{studySet.title}</span>. The content below covers {explanations.length} key ideas in logical order, each with a concise 2–4 sentence note and a context image matched via Google Images. Skim top to bottom for the full story.
+                  </p>
+                </div>
+
+                {/* Sections — clean, spacious, Helvetica */}
+                <div className="divide-y divide-[var(--border)]">
+                  {explanations.map((item, idx) => {
+                    const text = fullById[item.id] || (item as any).full_explanation || item.answer;
+                    const imgUrl = (item as any).imageUrl || (item as any).image_url;
+                    const imgQuery = (item as any).imageSearchQuery || (item as any).image_search_query;
+                    return (
+                      <section key={item.id} id={`sec-${item.id}`} className="px-7 py-8 md:px-10 md:py-9">
+                        <h2 className="text-[19px] font-extrabold leading-snug tracking-tight md:text-[21px]">
+                          <span className="mr-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-2)] text-sm font-black ring-1 ring-[var(--border)]">{idx + 1}</span>
+                          {item.prompt}
+                        </h2>
+                        <div className="prose max-w-none pt-4 text-[16px] leading-8 md:text-[17px] md:leading-[1.85]">
+                          <p className="text-[16px] leading-8 md:text-[17px] md:leading-[1.85]">
+                            <VocabularyText text={text} enabled={vocabulary} />
+                          </p>
+                        </div>
+
+                        {/* Image — clean, big, centered */}
+                        <div className="mt-7 flex justify-center">
+                          <figure className="w-full max-w-[640px]">
+                            {imgUrl ? (
+                              <>
+                                <img
+                                  src={imgUrl}
+                                  alt={imgQuery || item.prompt}
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                  className="w-full rounded-xl bg-[var(--surface-2)] object-contain shadow-sm"
+                                  style={{ maxHeight: 460 }}
+                                />
+                                <figcaption className="mt-3 text-center text-[13px] leading-relaxed muted">
+                                  <span className="font-semibold text-[var(--foreground)]">{item.prompt}</span> · “{imgQuery}” · via Google Images
+                                </figcaption>
+                              </>
+                            ) : imgQuery ? (
+                              <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-2)] p-6">
+                                <p className="text-center text-sm font-semibold muted">Finding image for “{imgQuery}”</p>
+                                <div className="mx-auto mt-4 h-32 w-full max-w-[360px] animate-pulse rounded-xl bg-[var(--border)]/40" />
+                                <p className="mt-3 text-center text-xs muted">Searching Google Images like a browser… 2 workers · 350ms stagger</p>
+                              </div>
+                            ) : null}
+                          </figure>
+                        </div>
+                      </section>
+                    );
+                  })}
+                </div>
+
+                {/* Foot actions — minimal */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] bg-[var(--surface-2)]/60 px-6 py-4 text-xs dark:border-[#2a2a2a] dark:bg-[#1a1a1a]/60 md:px-8">
+                  <span className="font-semibold muted">{explanations.length} sections · A-Z · clean doc</span>
+                  <div className="flex gap-2">
+                    <Link href={`/quiz/${setId}`} className="rounded-full bg-[var(--primary)] px-4 py-1.5 text-xs font-bold text-white hover:bg-[var(--primary-strong)]">Take quiz →</Link>
+                    <button onClick={() => setVocabulary((v) => !v)} className={`rounded-full border px-4 py-1.5 text-xs font-bold ${vocabulary ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-[var(--surface)] text-[var(--foreground)] border-[var(--border)]"}`}>Vocabulary {vocabulary ? "ON" : "OFF"}</button>
+                  </div>
+                </div>
+              </article>
+
+              {/* Optional: subtle mind-map link — not dominant */}
+              <details className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
+                <summary className="cursor-pointer list-none text-sm font-bold">Show mind map (Connected Papers style) — optional</summary>
+                <div className="pt-3">
+                  <MindMap title={studySet.title} items={mindItems} vocab={vocabulary} />
+                </div>
+              </details>
+            </div>
           ) : (
             <>
               {explanations.map((item, index) => (
                 <FadeIn key={item.id} delay={index * 0.05}>
-                  <article className="card p-6 md:p-8">
-                    <p className="kicker mb-3">Concept {index + 1}</p>
-                    <h3 className="text-xl font-extrabold">{item.prompt}</h3>
-                    <p className="mt-4 text-[1.05rem] leading-8">
-                      <VocabularyText text={fullById[item.id] || item.full_explanation || item.answer} enabled={vocabulary} />
-                    </p>
+                  <article className="card overflow-hidden p-0">
+                    <div className="p-6 md:p-8">
+                      <p className="kicker mb-3">Concept {index + 1}</p>
+                      <h3 className="text-xl font-extrabold">{item.prompt}</h3>
+                      <p className="mt-4 text-[1.05rem] leading-8">
+                        <VocabularyText text={fullById[item.id] || item.full_explanation || item.answer} enabled={vocabulary} />
+                      </p>
+                    </div>
+                    <div className="px-6 pb-6 md:px-8">
+                      <SectionImage
+                        url={(item as any).imageUrl || (item as any).image_url}
+                        query={(item as any).imageSearchQuery || (item as any).image_search_query}
+                        alt={item.prompt}
+                      />
+                    </div>
                     {!item.full_explanation && !fullById[item.id] && (
                       <button
                         type="button"

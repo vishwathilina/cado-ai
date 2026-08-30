@@ -214,12 +214,14 @@ class AIService:
         prompt = f"""
 Create a study set in {language}. Use SOURCE only. If SOURCE does not support a question, skip that idea — never invent facts.
 
-Quality over filler. Every item must help a student check real understanding of these notes.
+High quality, easy to learn. Every item must be crystal-clear, beginner-friendly, and match ideas in SOURCE. Use simple language, short sentences, and a concrete example where it helps memory. Avoid jargon without definition.
+
 {avoid}
 Return JSON only with this exact shape:
-{{"title":"...","items":[{{"kind":"explanation","prompt":"...","answer":"..."}},{{"kind":"flashcard","prompt":"...","answer":"..."}},{{"kind":"mcq","prompt":"...","answer":"...","options":["a","b","c","d"],"explanation":"..."}}]}}
-- for kind=explanation or flashcard, use only prompt and answer (no options, no explanation)
-- for kind=mcq, use prompt, answer, options, explanation
+{{"title":"...","items":[{{"kind":"explanation","prompt":"...","answer":"...","imageSearchQuery":"..."}},{{"kind":"flashcard","prompt":"...","answer":"..."}},{{"kind":"mcq","prompt":"...","answer":"...","options":["a","b","c","d"],"explanation":"..."}}]}}
+- for kind=explanation: use prompt, answer, and imageSearchQuery (2-6 words, neutral visual concept for Google Images, e.g. "mitochondrion diagram", "ancient library interior", "person reading by window" — no logos, no text, safe for school)
+- for kind=flashcard: use only prompt and answer
+- for kind=mcq: use prompt, answer, options, explanation
 
 Counts (aim for these; never invent extra kinds):
 - {explanation_count} explanations
@@ -227,9 +229,10 @@ Counts (aim for these; never invent extra kinds):
 - {flashcard_count} flashcards
 If SOURCE is thin, return fewer items of a kind rather than padding. Do not add a kind whose count is 0.
 
-Explanations:
+Explanations (most important for easy learning):
 - prompt: a short heading for the idea (3-8 words) — when style is "full", order prompts logically start to finish so they read as A-Z short notes for the whole document
 - {explanation_rule}
+- imageSearchQuery: 2-6 words, neutral visual scene that matches the explanation and would make a good Google Images result (e.g. "cell division phases diagram", "photosynthesis light reaction illustration"). Keep generic, safe, no brand names.
 
 Flashcards:
 - one fact per card

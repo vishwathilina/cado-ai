@@ -124,6 +124,8 @@ class StudyItem(Base):
     option_explanations: Mapped[list[dict] | None] = mapped_column(JSON)
     full_explanation: Mapped[str | None] = mapped_column(Text)
     source_chunk_ids: Mapped[list[str]] = mapped_column(JSON, default=list)
+    image_search_query: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class QuizAttempt(Base):

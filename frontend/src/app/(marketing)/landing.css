@@ -1,0 +1,51 @@
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist), "Geist", "Geist Fallback", sans-serif;
+  --font-serif: var(--font-fraunces), "Fraunces", serif;
+}
+
+.auth-field {
+  background: #fff;
+  border: 1px solid rgb(0 0 0 / 0.1);
+  border-radius: .75rem;
+  font: inherit;
+  font-size: .95rem;
+  padding: .7rem .9rem;
+  width: 100%;
+}
+
+.auth-field:focus {
+  border-color: rgb(0 0 0 / 0.25);
+  outline: 2px solid rgb(0 0 0 / 0.08);
+  outline-offset: 0;
+}

@@ -7,11 +7,11 @@ import {
   Loading03Icon,
   SparklesIcon,
 } from "@hugeicons/core-free-icons";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { DragEvent, useEffect, useRef, useState } from "react";
-import { CadoBuddy } from "@/components/cado-buddy";
+import { EditorialAppPage, EditorialHero, EditorialSteps } from "@/components/editorial/editorial-app-page";
 import { Icon } from "@/components/icon";
-import { PageHeader, ProgressBar, Steps } from "@/components/ui";
 import { api, DocumentRecord, StudySet } from "@/lib/api";
 import { useUploadThing } from "@/lib/uploadthing";
 
@@ -243,35 +243,48 @@ export default function UploadPage() {
     (error ? "Fix the issue below, then retry." : "Choose a file and tap generate.");
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <PageHeader
+    <EditorialAppPage>
+      <EditorialHero
         kicker="Upload studio"
         title="Turn notes into a session."
-        subtitle="Three steps: drop a file, pick what Cado should make, then generate."
+        subtitle="Drop a file, choose what Cado should make, then generate — explanations, flashcards, and quiz questions in one pass."
       />
-      <Steps current={step} items={["Add notes", "Choose outputs", "Generate"]} />
+
+      <div className="mb-8">
+        <EditorialSteps current={step} items={["Add notes", "Choose outputs", "Generate"]} />
+      </div>
 
       {(working || error) && (
-        <section className="card space-y-4 p-5 md:p-6" aria-live="polite">
+        <section className="editorial-card mb-8 space-y-4 p-5 md:p-6" aria-live="polite">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="kicker">Progress</p>
-              <p className="mt-1 font-extrabold">{error ? "Something went wrong" : currentCopy}</p>
-              <p className="muted mt-1 text-sm">{statusNote || (error ? error : "Cado is working.")}</p>
+              <p className="editorial-kicker">Progress</p>
+              <p className="mt-2 text-sm font-semibold">{error ? "Something went wrong" : currentCopy}</p>
+              <p className="mt-1 text-sm editorial-muted">{statusNote || (error ? error : "Cado is working.")}</p>
             </div>
-            <p className="muted text-sm font-bold">{elapsed}s</p>
+            <p className="text-sm font-semibold editorial-muted tabular-nums">{elapsed}s</p>
           </div>
-          <ProgressBar value={error ? progress : progress} label={error ? "Stopped" : `${progress}%`} />
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] editorial-muted">
+              {error ? "Stopped" : `${progress}%`}
+            </p>
+            <div className="editorial-progress-track" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+              <span style={{ width: `${progress}%` }} />
+            </div>
+          </div>
           <ol className="grid gap-2 sm:grid-cols-3">
             {pipeline.map((item, index) => {
               const done = !error && (activeIndex > index || (stage === "generating" && index < 2));
               const now = !error && item.id === stage;
               return (
-                <li key={item.id} className={`rounded-xl p-3 ${now ? "bg-[var(--surface-2)]" : "soft"}`}>
-                  <p className="text-xs font-extrabold uppercase tracking-widest">
+                <li
+                  key={item.id}
+                  className={`editorial-pipeline-step text-sm ${now ? "is-now" : ""}`}
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] editorial-muted">
                     {done ? "Done" : now ? "Now" : "Next"}
                   </p>
-                  <p className="mt-1 font-bold">{item.label}</p>
+                  <p className="mt-1 font-semibold">{item.label}</p>
                 </li>
               );
             })}
@@ -279,9 +292,9 @@ export default function UploadPage() {
         </section>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[1.15fr_.85fr]">
-        <section className="card p-6 md:p-8">
-          <p className="kicker mb-4">Step 1</p>
+      <div className="grid gap-6 lg:grid-cols-[1.1fr_.9fr] lg:gap-8">
+        <section className="editorial-card p-5 md:p-6">
+          <p className="editorial-kicker mb-4">Step 1</p>
           <button
             type="button"
             onClick={() => input.current?.click()}
@@ -289,140 +302,209 @@ export default function UploadPage() {
             onDragLeave={() => setDragging(false)}
             onDragOver={(event) => event.preventDefault()}
             onDrop={drop}
-            className={`grid min-h-80 w-full place-items-center rounded-2xl border border-dashed p-8 ${dragging ? "border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_8%,var(--surface))]" : "border-[var(--border)] bg-[var(--surface-2)]"}`}
+            className={`editorial-drop ${dragging ? "is-dragging" : ""}`}
           >
             {file ? (
               <div>
-                <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--surface)] text-[var(--primary)]">
+                <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[color-mix(in_srgb,var(--foreground)_6%,transparent)] text-[var(--muted)]">
                   {fileKind(file) === "image" ? <Icon icon={Image01Icon} size={28} /> : <Icon icon={File01Icon} size={28} />}
                 </span>
                 <p className="mt-4 max-w-xs truncate font-semibold">{file.name}</p>
-                <p className="muted mt-1 text-sm">{(file.size / 1024 / 1024).toFixed(1)} MB · Ready</p>
+                <p className="mt-1 text-sm editorial-muted">{(file.size / 1024 / 1024).toFixed(1)} MB · Ready</p>
               </div>
             ) : (
-              <div className="text-center">
-                <CadoBuddy size={120} message="" />
-                <p className="font-display mt-3 text-xl font-semibold">Drop your notes</p>
-                <p className="muted mt-2 text-sm">PDF, PPTX, TXT, JPG, PNG, or WEBP · up to 16 MB</p>
-                <span className="btn-secondary mt-5 py-2 text-sm">Browse files</span>
+              <div>
+                <div className="relative mx-auto size-28 overflow-hidden rounded-2xl bg-black">
+                  <Image src="/pixel-automation.png" alt="" fill className="object-contain" sizes="112px" />
+                </div>
+                <p className="editorial-title mt-5 text-2xl">Drop your notes</p>
+                <p className="mt-2 text-sm editorial-muted">PDF, PPTX, TXT, JPG, PNG, or WEBP · up to 16 MB</p>
+                <span className="editorial-btn-secondary mt-5">Browse files</span>
               </div>
             )}
           </button>
           <input ref={input} hidden type="file" accept={ACCEPT} onChange={(event) => choose(event.target.files?.[0])} />
-          {file && !working && <button onClick={() => setFile(null)} className="muted mt-3 flex items-center gap-1 text-sm"><Icon icon={Cancel01Icon} size={15} /> Remove file</button>}
+          {file && !working && (
+            <button onClick={() => setFile(null)} className="mt-3 flex items-center gap-1 text-sm editorial-muted hover:text-[var(--foreground)]">
+              <Icon icon={Cancel01Icon} size={15} /> Remove file
+            </button>
+          )}
         </section>
 
-        <section className="card space-y-6 p-6 md:p-8">
-          <p className="kicker">Step 2</p>
-          <label className="block text-sm font-semibold">Language
-            <select value={language} onChange={(event) => setLanguage(event.target.value)} className="field mt-2" disabled={working}>
-              <option>English</option><option>Spanish</option><option>French</option><option>Hindi</option>
+        <section className="editorial-card space-y-6 p-5 md:p-6">
+          <p className="editorial-kicker">Step 2</p>
+          <label className="block">
+            <span className="text-sm font-semibold">Language</span>
+            <select
+              value={language}
+              onChange={(event) => setLanguage(event.target.value)}
+              className="editorial-field mt-2 h-11"
+              disabled={working}
+            >
+              <option>English</option>
+              <option>Spanish</option>
+              <option>French</option>
+              <option>Hindi</option>
             </select>
           </label>
-          <label className="block text-sm font-semibold">Which part?
+          <label className="block">
+            <span className="text-sm font-semibold">Which part?</span>
             <input
               value={focus}
               disabled={working}
               onChange={(event) => setFocus(event.target.value)}
               placeholder="Whole notes, or type a topic (e.g. photosynthesis, chapter 4)"
-              className="field mt-2"
+              className="editorial-field mt-2"
             />
           </label>
           <fieldset>
             <legend className="text-sm font-semibold">How many of each</legend>
             <div className="mt-4 space-y-3">
-              {formats.map((format) => (
-                <div
-                  key={format.key}
-                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-[var(--border)] px-4 py-3"
-                >
-                  <input
-                    id={`output-${format.key}`}
-                    type="checkbox"
-                    checked={outputs[format.key]}
-                    disabled={working}
-                    onChange={() => setOutputs({ ...outputs, [format.key]: !outputs[format.key] })}
-                    className="size-4 shrink-0 accent-[var(--primary)]"
-                  />
-                  <label htmlFor={`output-${format.key}`} className="min-w-0 cursor-pointer">
-                    <span className="block font-semibold leading-snug">{format.label}</span>
-                    <span className="muted mt-0.5 block text-xs leading-snug">
-                      {format.key === "explanation" && outputs.explanation && explanationMode === "full"
-                        ? "A-Z short notes + mind map — entire doc condensed"
-                        : format.hint}
-                    </span>
-                    {format.key === "explanation" && outputs.explanation && (
-                      <span className="mode-toggle mt-2">
-                        <button
-                          type="button"
-                          className={explanationMode === "count" ? "is-on" : ""}
-                          disabled={working}
-                          onClick={() => setExplanationMode("count")}
-                        >
-                          Count
-                        </button>
-                        <button
-                          type="button"
-                          className={explanationMode === "full" ? "is-on" : ""}
-                          disabled={working}
-                          onClick={() => setExplanationMode("full")}
-                        >
-                          Full
-                        </button>
-                      </span>
-                    )}
-                    {format.key === "explanation" && outputs.explanation && explanationMode === "full" && (
-                      <span className="mt-1.5 block text-[11px] leading-snug font-medium text-[var(--primary)]">
-                        5–10 short notes (2–4 lines each) + interactive graph · Auto count
-                      </span>
-                    )}
-                  </label>
-                  {format.key === "explanation" && explanationMode === "full" ? (
-                    <span className="muted text-xs font-bold whitespace-nowrap px-1">Auto · A-Z</span>
-                  ) : (
+              {formats.map((format) => {
+                const isFullCard = format.key === "explanation" && outputs.explanation && explanationMode === "full";
+                return (
+                  <div
+                    key={format.key}
+                    className={`editorial-format-row ${outputs[format.key] ? "is-on" : "is-off"} ${isFullCard ? "border-black/20" : ""}`}
+                  >
                     <input
-                      type="number"
-                      min={1}
-                      max={format.max}
-                      value={counts[format.key]}
-                      disabled={working || !outputs[format.key]}
-                      onChange={(event) => {
-                        const next = Number(event.target.value);
-                        setCounts({
-                          ...counts,
-                          [format.key]: Number.isFinite(next)
-                            ? Math.min(format.max, Math.max(1, Math.round(next)))
-                            : 1,
-                        });
-                      }}
-                      className="count-field"
-                      aria-label={`Number of ${format.label.toLowerCase()}`}
+                      id={`output-${format.key}`}
+                      type="checkbox"
+                      checked={outputs[format.key]}
+                      disabled={working}
+                      onChange={() => setOutputs({ ...outputs, [format.key]: !outputs[format.key] })}
+                      className="peer sr-only"
                     />
-                  )}
-                </div>
-              ))}
+                    <label
+                      htmlFor={`output-${format.key}`}
+                      className="editorial-check grid h-7 w-7 shrink-0 cursor-pointer place-items-center text-transparent transition peer-focus-visible:ring-4 peer-focus-visible:ring-[color-mix(in_srgb,var(--primary)_20%,transparent)]"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+                        <path d="M3 7L5.5 9.5L11 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </label>
+                    <label htmlFor={`output-${format.key}`} className="min-w-0 flex-1 cursor-pointer">
+                      <span className="block text-sm font-semibold leading-none">{format.label}</span>
+                      <span className="mt-1 block text-[13px] leading-snug editorial-muted">
+                        {format.key === "explanation" && outputs.explanation && explanationMode === "full"
+                          ? "A-Z short notes + mind map — entire doc condensed"
+                          : format.hint}
+                      </span>
+                      {format.key === "explanation" && outputs.explanation && (
+                        <span className="mode-toggle mt-3">
+                          <button
+                            type="button"
+                            className={explanationMode === "count" ? "is-on" : ""}
+                            disabled={working}
+                            onClick={() => setExplanationMode("count")}
+                          >
+                            Count
+                          </button>
+                          <button
+                            type="button"
+                            className={explanationMode === "full" ? "is-on" : ""}
+                            disabled={working}
+                            onClick={() => setExplanationMode("full")}
+                          >
+                            Full
+                          </button>
+                        </span>
+                      )}
+                      {format.key === "explanation" && outputs.explanation && explanationMode === "full" && (
+                        <span className="mt-3 block text-xs font-semibold text-[var(--primary)]">5–8 short notes · Auto</span>
+                      )}
+                    </label>
+                    {format.key === "explanation" && explanationMode === "full" ? (
+                      <span className="editorial-chip hidden shrink-0 sm:inline-flex">
+                        Auto · A-Z
+                      </span>
+                    ) : (
+                      <input
+                        type="number"
+                        min={1}
+                        max={format.max}
+                        value={counts[format.key]}
+                        disabled={working || !outputs[format.key]}
+                        onChange={(event) => {
+                          const next = Number(event.target.value);
+                          setCounts({
+                            ...counts,
+                            [format.key]: Number.isFinite(next)
+                              ? Math.min(format.max, Math.max(1, Math.round(next)))
+                              : 1,
+                          });
+                        }}
+                        className="editorial-field h-11 w-[72px] shrink-0 text-center font-semibold"
+                        aria-label={`Number of ${format.label.toLowerCase()}`}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </fieldset>
           {outputs.mcq && counts.mcq > 40 && (
-            <p className="muted text-xs">Large quizzes can take several minutes to write.</p>
+            <p className="text-xs editorial-muted">Large quizzes can take several minutes to write.</p>
           )}
           {outputs.mcq && (
-            <label className="block text-sm font-semibold">Answers per quiz question
-              <select value={optionCount} disabled={working} onChange={(event) => setOptionCount(Number(event.target.value))} className="field mt-2">
+            <label className="block">
+              <span className="text-sm font-semibold">Answers per quiz question</span>
+              <select
+                value={optionCount}
+                disabled={working}
+                onChange={(event) => setOptionCount(Number(event.target.value))}
+                className="editorial-field mt-2 h-11"
+              >
                 <option value={4}>4 options</option>
                 <option value={5}>5 options</option>
               </select>
             </label>
           )}
-          {error && <p role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm text-[var(--danger)]">{error}</p>}
-          {error && documentId && <button onClick={retry} className="btn-secondary w-full">Retry this file</button>}
-          <button disabled={working} onClick={generate} className="btn-primary w-full disabled:opacity-60">
+          {error && (
+            <p role="alert" className="rounded-xl bg-red-500/10 p-3 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+          {error && documentId && (
+            <button onClick={retry} className="editorial-btn-secondary w-full">
+              Retry this file
+            </button>
+          )}
+          <button disabled={working} onClick={generate} className="editorial-btn-primary w-full disabled:opacity-60">
             {working ? <Icon icon={Loading03Icon} className="animate-spin" size={18} /> : <Icon icon={SparklesIcon} size={18} />}
-            {working && stage === "uploading" ? "Uploading…" : working && stage === "reading" ? "Reading notes…" : working && stage === "generating" ? "Building set…" : "Generate study set"}
+            {working && stage === "uploading"
+              ? "Uploading…"
+              : working && stage === "reading"
+                ? "Reading notes…"
+                : working && stage === "generating"
+                  ? "Building set…"
+                  : "Generate study set"}
           </button>
-          {working && <p className="muted text-center text-xs">Stay on this page. Progress updates as Cado works.</p>}
+          {working && <p className="text-center text-xs editorial-muted">Stay on this page. Progress updates as Cado works.</p>}
         </section>
       </div>
-    </div>
+
+      <section className="editorial-scene-band relative mt-12 hidden md:block">
+        <div className="relative aspect-[21/9]">
+          <Image
+            src="/pixel-landscape.jpg"
+            alt="Pixel art landscape with sunflowers, mountains, and a lake"
+            fill
+            className="object-cover"
+            sizes="(min-width: 768px) 72rem, 100vw"
+          />
+          <div className="absolute inset-0 flex items-center justify-center px-6">
+            <div className="editorial-scene-prompt flex w-[min(560px,100%)] items-center justify-between gap-4 p-5">
+              <span className="truncate text-[15px] editorial-muted">
+                Turn my lecture slides into flashcards and a quiz
+              </span>
+              <span className="editorial-btn-primary grid size-10 shrink-0 place-items-center rounded-full p-0">
+                <Icon icon={SparklesIcon} size={18} />
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </EditorialAppPage>
   );
 }

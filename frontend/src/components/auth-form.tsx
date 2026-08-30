@@ -1,11 +1,12 @@
 "use client";
 
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
-import { BrandMark, CadoBuddy } from "@/components/cado-buddy";
 import { Icon } from "@/components/icon";
+import { MarketingHeader } from "@/components/marketing-header";
 import { api } from "@/lib/api";
 import { safeQuizNext } from "@/lib/next-path";
 
@@ -47,51 +48,97 @@ function AuthFormInner({ mode }: { mode: "login" | "register" }) {
   }
 
   return (
-    <main className="stars grid min-h-screen items-center gap-10 p-5 lg:grid-cols-[.9fr_1fr] lg:px-16">
-      <div className="hidden justify-center lg:flex">
-        <CadoBuddy
-          size={340}
-          message={mode === "login" ? "Welcome back. The trail is still warm." : "New pack, same buddy. Let’s start walking."}
-        />
-      </div>
-      <div className="mx-auto w-full max-w-md">
-        <Link href="/" className="mb-8 flex justify-center lg:justify-start">
-          <BrandMark />
-        </Link>
-        <form onSubmit={submit} className="card space-y-5 p-7">
-          <div>
-            <h1 className="text-2xl font-extrabold">
-              {mode === "login" ? "Welcome back" : "Create your account"}
-            </h1>
-            <p className="muted mt-1 text-sm">
-              {mode === "login" ? "Cado saved your spot." : "Study smarter from day one."}
-            </p>
+    <main className="min-h-screen bg-white text-[#0A0A0A]">
+      <MarketingHeader />
+
+      <div className="max-w-[1280px] mx-auto px-6 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center py-16 lg:py-24">
+        <div className="hidden lg:flex justify-center">
+          <div className="relative size-[360px] rounded-2xl overflow-hidden bg-black">
+            <Image
+              src="/pixel-automation.png"
+              alt=""
+              fill
+              className="object-contain"
+              sizes="360px"
+              priority
+            />
           </div>
-          {mode === "register" && (
-            <label className="block text-sm font-bold">
-              Name
-              <input name="name" required minLength={2} className="field mt-2 font-normal" />
-            </label>
-          )}
-          <label className="block text-sm font-bold">
-            Email
-            <input name="email" type="email" required className="field mt-2 font-normal" />
-          </label>
-          <label className="block text-sm font-bold">
-            Password
-            <input name="password" type="password" required minLength={8} className="field mt-2 font-normal" />
-          </label>
-          {error && <p role="alert" className="rounded-lg bg-red-500/10 p-3 text-sm text-[var(--danger)]">{error}</p>}
-          <button disabled={loading} className="btn-primary w-full disabled:opacity-60">
-            {loading ? "Please wait…" : mode === "login" ? "Sign in" : "Get started"} <Icon icon={ArrowRight01Icon} size={17} />
-          </button>
-          <p className="muted text-center text-sm">
-            {mode === "login" ? "New to Cado?" : "Already have an account?"}{" "}
-            <Link className="font-bold text-[var(--primary)]" href={mode === "login" ? `/register${nextQuery}` : `/login${nextQuery}`}>
-              {mode === "login" ? "Create account" : "Sign in"}
-            </Link>
+        </div>
+
+        <div className="w-full max-w-md mx-auto lg:mx-0 lg:max-w-lg">
+          <p className="text-xs uppercase tracking-[0.18em] text-black/50">
+            {mode === "login" ? "Welcome back" : "Get started"}
           </p>
-        </form>
+          <h1 className="mt-3 font-serif text-4xl md:text-5xl font-medium tracking-tight leading-[1.05]">
+            {mode === "login" ? "Sign in to Cado" : "Create your account"}
+          </h1>
+          <p className="mt-4 text-sm text-black/60 leading-relaxed">
+            {mode === "login"
+              ? "Pick up where you left off — your study sets, plans, and progress are waiting."
+              : "Upload notes once. Get explanations, flashcards, quizzes, and a weekly plan."}
+          </p>
+
+          <form onSubmit={submit} className="mt-10 space-y-5">
+            {mode === "register" && (
+              <label className="block">
+                <span className="text-sm font-medium text-black/80">Name</span>
+                <input
+                  name="name"
+                  required
+                  minLength={2}
+                  className="auth-field mt-2"
+                  autoComplete="name"
+                />
+              </label>
+            )}
+            <label className="block">
+              <span className="text-sm font-medium text-black/80">Email</span>
+              <input
+                name="email"
+                type="email"
+                required
+                className="auth-field mt-2"
+                autoComplete="email"
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-black/80">Password</span>
+              <input
+                name="password"
+                type="password"
+                required
+                minLength={8}
+                className="auth-field mt-2"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+              />
+            </label>
+
+            {error && (
+              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-black px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-black/90 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/40 focus-visible:ring-offset-2"
+            >
+              {loading ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
+              {!loading && <Icon icon={ArrowRight01Icon} size={17} />}
+            </button>
+
+            <p className="text-center text-sm text-black/60">
+              {mode === "login" ? "New to Cado?" : "Already have an account?"}{" "}
+              <Link
+                href={mode === "login" ? `/register${nextQuery}` : `/login${nextQuery}`}
+                className="font-medium text-black underline-offset-4 hover:underline"
+              >
+                {mode === "login" ? "Create account" : "Sign in"}
+              </Link>
+            </p>
+          </form>
+        </div>
       </div>
     </main>
   );

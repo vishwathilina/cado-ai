@@ -7,6 +7,10 @@ export type StudyItem = {
   options: string[] | null;
   explanation: string | null;
   full_explanation?: string | null;
+  image_search_query?: string | null;
+  image_url?: string | null;
+  imageSearchQuery?: string | null;
+  imageUrl?: string | null;
 };
 
 export type StudySet = {
