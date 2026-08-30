@@ -5,7 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { Icon } from "@/components/icon";
+import { LoadingOverlay } from "@/components/page-transition";
 import { MarketingHeader } from "@/components/marketing-header";
 import { api } from "@/lib/api";
 import { safeQuizNext } from "@/lib/next-path";
@@ -65,7 +67,15 @@ function AuthFormInner({ mode }: { mode: "login" | "register" }) {
           </div>
         </div>
 
-        <div className="w-full max-w-md mx-auto lg:mx-0 lg:max-w-lg">
+        <div className="relative w-full max-w-md mx-auto lg:mx-0 lg:max-w-lg">
+          <AnimatePresence>
+            {loading && (
+              <LoadingOverlay
+                className="auth-loading-overlay"
+                label={mode === "login" ? "Signing you in…" : "Creating your account…"}
+              />
+            )}
+          </AnimatePresence>
           <p className="text-xs uppercase tracking-[0.18em] text-black/50">
             {mode === "login" ? "Welcome back" : "Get started"}
           </p>

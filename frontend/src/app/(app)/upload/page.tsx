@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { DragEvent, useEffect, useRef, useState } from "react";
 import { EditorialAppPage, EditorialHero, EditorialSteps } from "@/components/editorial/editorial-app-page";
 import { Icon } from "@/components/icon";
+import { useMotionSmoothScroll } from "@/hooks/use-motion-smooth-scroll";
 import { api, DocumentRecord, StudySet } from "@/lib/api";
 import { useUploadThing } from "@/lib/uploadthing";
 
@@ -55,6 +56,7 @@ function stageIndex(stage: Stage) {
 }
 
 export default function UploadPage() {
+  useMotionSmoothScroll();
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);

@@ -13,8 +13,11 @@ import {
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { FormEvent, Fragment, PointerEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { DatePicker } from "@/components/date-calendar";
+import { HoldToConfirm } from "@/components/hold-to-confirm";
 import { Icon } from "@/components/icon";
+import { LoadingOverlay } from "@/components/page-transition";
 import { api } from "@/lib/api";
 import { isoDate } from "@/lib/dates";
 
@@ -973,9 +976,14 @@ export function StudyPlans({
                     <button type="button" className="btn-secondary flex-1 py-2 text-sm" onClick={() => setStopAsk(null)}>
                       Keep going
                     </button>
-                    <button type="button" className="btn-primary flex-1 py-2 text-sm" onClick={confirmStop}>
-                      Stop
-                    </button>
+                    <HoldToConfirm
+                      className="flex-1"
+                      label={stopAsk.kind === "switch" ? "Hold to switch" : "Hold to stop"}
+                      holdingLabel="Keep holding…"
+                      readyLabel="Release to confirm"
+                      hint="Press and hold to confirm"
+                      onConfirm={confirmStop}
+                    />
                   </div>
                 </div>
               ) : timesUp ? (
@@ -1030,7 +1038,10 @@ export function StudyPlans({
       {error && <p className="mb-3 text-sm text-[var(--danger)]">{error}</p>}
 
       {creating === "generate" && (
-        <form onSubmit={generate} className="card mb-4 grid gap-3 p-4 md:grid-cols-2">
+        <form onSubmit={generate} className="card relative mb-4 grid gap-3 p-4 md:grid-cols-2">
+          <AnimatePresence>
+            {saving && <LoadingOverlay label="Building your study plan…" />}
+          </AnimatePresence>
           <label className="text-sm font-semibold md:col-span-2">Goal
             <input name="goal" required placeholder="e.g. Master cell biology before Friday" className="field mt-2" />
           </label>
@@ -1048,7 +1059,10 @@ export function StudyPlans({
       )}
 
       {creating === "blank" && (
-        <form onSubmit={createBlank} className="card mb-4 grid gap-3 p-4 sm:grid-cols-[1fr_11rem_auto]">
+        <form onSubmit={createBlank} className="card relative mb-4 grid gap-3 p-4 sm:grid-cols-[1fr_11rem_auto]">
+          <AnimatePresence>
+            {saving && <LoadingOverlay label="Creating your plan…" />}
+          </AnimatePresence>
           <label className="text-sm font-semibold">Plan name
             <input name="title" required placeholder="e.g. Midterm week" className="field mt-2" />
           </label>

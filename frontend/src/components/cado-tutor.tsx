@@ -16,11 +16,12 @@ import {
 } from "@hugeicons/core-free-icons";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { BrandMark, CadoBuddy } from "@/components/cado-buddy";
 import { Icon } from "@/components/icon";
 import { pageEase } from "@/components/page-transition";
 import { useTheme } from "@/components/theme-provider";
+import { themeToggleOrigin } from "@/lib/theme-transition";
 import { api, StudyItem, StudySet, TutorCitation, TutorReply } from "@/lib/api";
 import { CiteViewer } from "@/components/pdf-cite";
 
@@ -113,7 +114,7 @@ export function CadoTutor({
   const thread = useRef<HTMLDivElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLInputElement>(null);
-  const { resolvedTheme, setTheme } = useTheme();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -308,8 +309,8 @@ export function CadoTutor({
         </button>
         <button
           type="button"
-          className="tutor-side-link"
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          className="tutor-side-link theme-toggle-btn"
+          onClick={(event) => toggleTheme(themeToggleOrigin(event))}
         >
           {resolvedTheme === "dark" ? <Icon icon={Sun03Icon} size={16} /> : <Icon icon={Moon02Icon} size={16} />}
           {resolvedTheme === "dark" ? "Light mode" : "Dark mode"}

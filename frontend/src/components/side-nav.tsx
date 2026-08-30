@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { scrollToSection } from "@/lib/lenis-scroll"
 
 const navItems = [
   { label: "Product", id: "product" },
@@ -48,12 +49,8 @@ export function SideNav() {
 
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     event.preventDefault()
-    const target = document.getElementById(id)
-    if (!target) return
-    const top = target.getBoundingClientRect().top + window.scrollY - 80
-    window.scrollTo({ top, behavior: "smooth" })
+    scrollToSection(id, -80)
     setActive(id)
-    history.replaceState(null, "", `#${id}`)
   }
 
   const linkClass = (isActive: boolean) =>

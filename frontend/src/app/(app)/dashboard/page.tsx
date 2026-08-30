@@ -12,8 +12,9 @@ import { useEffect, useMemo, useState } from "react";
 import { DatePicker } from "@/components/date-calendar";
 import { Icon } from "@/components/icon";
 import { StudyPlans, type StudyPlan } from "@/components/study-plans";
-import { FadeIn } from "@/components/page-transition";
+import { FadeIn, FadeLoading, FadeLoadingGroup } from "@/components/page-transition";
 import { ProgressBar } from "@/components/ui";
+import { useMotionSmoothScroll } from "@/hooks/use-motion-smooth-scroll";
 import { api } from "@/lib/api";
 import { isoDate } from "@/lib/dates";
 
@@ -95,6 +96,7 @@ function weekDays(anchor = new Date()) {
 }
 
 export default function DashboardPage() {
+  useMotionSmoothScroll();
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
@@ -202,11 +204,11 @@ export default function DashboardPage() {
     return (
       <div className="dash-scene">
         <div className="dash-page dash-grid">
-          <div className="dash-primary animate-pulse">
-            <div className="glass-panel dash-continue h-44 rounded-3xl" />
-            <div className="glass-panel dash-plan h-64 rounded-3xl" />
-          </div>
-          <div className="glass-panel dash-aside hidden h-80 rounded-3xl lg:block" />
+          <FadeLoadingGroup className="dash-primary space-y-5">
+            <FadeLoading className="glass-panel dash-continue h-44" />
+            <FadeLoading className="glass-panel dash-plan h-64" />
+          </FadeLoadingGroup>
+          <FadeLoading className="glass-panel dash-aside hidden h-80 lg:block" />
         </div>
       </div>
     );
@@ -215,7 +217,7 @@ export default function DashboardPage() {
   const firstName = data.name.split(" ")[0];
 
   const stats = (
-    <aside className="glass-panel dash-side dash-aside" id="dash-stats">
+    <aside className="glass-panel dash-side" id="dash-stats">
       <div className="dash-side-head">
         <div className="flex min-w-0 items-center gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#f3803b] text-xs font-semibold text-white">
@@ -434,7 +436,8 @@ export default function DashboardPage() {
   return (
     <div className="dash-scene min-h-full">
       <div className="dash-page">
-        <header className="dash-toolbar">
+        <FadeIn>
+          <header className="dash-toolbar">
           <div className="dash-toolbar-title min-w-0">
             <p className="muted text-sm font-medium">Today</p>
             <h1>Hi, {firstName}</h1>
@@ -458,9 +461,11 @@ export default function DashboardPage() {
             </Link>
           </div>
         </header>
+        </FadeIn>
 
         <div className="dash-grid">
           <div className="dash-primary">
+            <FadeIn delay={0.05}>
             <section className="glass-panel dash-continue p-5 md:p-6">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="min-w-0 text-lg font-semibold tracking-tight">Continue studying</h2>
@@ -548,7 +553,9 @@ export default function DashboardPage() {
                 </div>
               )}
             </section>
+            </FadeIn>
 
+            <FadeIn delay={0.1}>
             <section className="glass-panel dash-plan p-5 md:p-6">
               <div className="dash-plan-head">
                 <h2 className="text-lg font-semibold tracking-tight">Study plan</h2>
@@ -587,9 +594,12 @@ export default function DashboardPage() {
                 onPlansChange={applyPlans}
               />
             </section>
+            </FadeIn>
           </div>
 
-          {stats}
+          <FadeIn delay={0.08} className="dash-aside">
+            {stats}
+          </FadeIn>
         </div>
       </div>
     </div>

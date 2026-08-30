@@ -14,10 +14,11 @@ import {
 import { useTheme } from "@/components/theme-provider";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { BrandMark } from "@/components/cado-buddy";
 import { Icon } from "@/components/icon";
 import { pageEase } from "@/components/page-transition";
+import { themeToggleOrigin } from "@/lib/theme-transition";
 import { api } from "@/lib/api";
 
 const links = [
@@ -29,12 +30,16 @@ const links = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { resolvedTheme, setTheme } = useTheme();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const quiz = pathname.startsWith("/quiz");
   const dashboard = pathname === "/dashboard";
   const editorial = pathname === "/upload" || pathname === "/history";
   const glassScene = dashboard || editorial;
+
+  function onToggleTheme(event: MouseEvent<HTMLButtonElement>) {
+    toggleTheme(themeToggleOrigin(event));
+  }
 
   const glassRail = (
     <aside className="app-rail-glass flex h-full w-[4.75rem] flex-col items-center py-5">
@@ -59,8 +64,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
       <div className="mt-auto flex flex-col items-center gap-2">
         <button
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          className="nav-rail-item"
+          onClick={onToggleTheme}
+          className="nav-rail-item theme-toggle-btn"
           aria-label={resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
           title={resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
         >
@@ -102,8 +107,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
       <div className="mt-auto flex flex-col items-center gap-2">
         <button
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          className="nav-rail-item"
+          onClick={onToggleTheme}
+          className="nav-rail-item theme-toggle-btn"
           aria-label={resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
           title={resolvedTheme === "dark" ? "Light mode" : "Dark mode"}
         >
@@ -139,8 +144,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </nav>
       <div className="mt-auto space-y-1">
         <button
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          className="nav-item w-full"
+          onClick={onToggleTheme}
+          className="nav-item theme-toggle-btn w-full"
         >
           {resolvedTheme === "dark" ? <Icon icon={Sun03Icon} size={18} /> : <Icon icon={Moon02Icon} size={18} />}
           {resolvedTheme === "dark" ? "Light mode" : "Dark mode"}

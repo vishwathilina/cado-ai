@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "@/components/icon";
-import { FadeIn, pageEase } from "@/components/page-transition";
+import { FadeIn, FadeLoading, LoadingInline, LoadingScreen, pageEase } from "@/components/page-transition";
 import { CadoTutor } from "@/components/cado-tutor";
 import { MindMap } from "@/components/mind-map";
 import { SectionImage } from "@/components/section-image";
@@ -144,7 +144,13 @@ export default function LearnPage() {
   }
 
   if (error) return <div className="card p-6 text-[var(--danger)]">{error}</div>;
-  if (!studySet) return <div className="soft h-96 animate-pulse rounded-3xl" />;
+  if (!studySet) {
+    return (
+      <LoadingScreen>
+        <FadeLoading className="soft h-96 rounded-3xl" />
+      </LoadingScreen>
+    );
+  }
   const card: StudyItem | undefined = cards[flashIndex];
 
   if (tab === "tutor") {
@@ -287,8 +293,10 @@ export default function LearnPage() {
                             ) : imgQuery ? (
                               <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-2)] p-6">
                                 <p className="text-center text-sm font-semibold muted">Finding image for “{imgQuery}”</p>
-                                <div className="mx-auto mt-4 h-32 w-full max-w-[360px] animate-pulse rounded-xl bg-[var(--border)]/40" />
-                                <p className="mt-3 text-center text-xs muted">Searching Google Images like a browser… 2 workers · 350ms stagger</p>
+                                <LoadingInline
+                                  className="mx-auto mt-4 w-full max-w-[360px]"
+                                  label='Searching Google Images like a browser… 2 workers · 350ms stagger'
+                                />
                               </div>
                             ) : null}
                           </figure>
@@ -336,14 +344,19 @@ export default function LearnPage() {
                       />
                     </div>
                     {!item.full_explanation && !fullById[item.id] && (
-                      <button
-                        type="button"
-                        className="btn-secondary mt-4 py-2 text-sm"
-                        disabled={fullLoading === item.id}
-                        onClick={() => void expandExplanation(item)}
-                      >
-                        {fullLoading === item.id ? "Writing…" : "Full explain"}
-                      </button>
+                      <div className="mt-4">
+                        <button
+                          type="button"
+                          className="btn-secondary py-2 text-sm"
+                          disabled={fullLoading === item.id}
+                          onClick={() => void expandExplanation(item)}
+                        >
+                          {fullLoading === item.id ? "Writing…" : "Full explain"}
+                        </button>
+                        {fullLoading === item.id && (
+                          <LoadingInline className="mt-3" label="Cado is writing a fuller explanation…" />
+                        )}
+                      </div>
                     )}
                     {fullError && fullLoading === null && (
                       <p className="mt-2 text-sm text-[var(--danger)]">{fullError}</p>

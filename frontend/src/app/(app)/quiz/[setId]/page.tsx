@@ -16,7 +16,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "@/components/icon";
-import { pageEase } from "@/components/page-transition";
+import { FadeLoading, LoadingInline, LoadingScreen, pageEase } from "@/components/page-transition";
 import { VocabularyText } from "@/components/vocabulary-text";
 import { api } from "@/lib/api";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -83,6 +83,7 @@ function FullExplain({ attemptId, itemId }: { attemptId: string; itemId: string 
       <button type="button" className="btn-secondary py-1.5 text-sm" onClick={() => void load()} disabled={loading}>
         {loading ? "Writing…" : open ? "Hide full explain" : "Full explain"}
       </button>
+      {loading && <LoadingInline className="mt-3" label="Writing a full explanation for each option…" />}
       {error && <p className="mt-2 text-sm text-[var(--danger)]">{error}</p>}
       {open && options && (
         <ul className="mt-3 space-y-2 text-left">
@@ -341,7 +342,13 @@ export default function QuizPage() {
   }
 
   if (error) return <div className="grid min-h-screen place-items-center p-6"><div className="card p-6 text-[var(--danger)]">{error}</div></div>;
-  if (!paper) return <div className="grid min-h-screen place-items-center"><div className="soft h-24 w-64 animate-pulse rounded-2xl" /></div>;
+  if (!paper) {
+    return (
+      <LoadingScreen className="grid min-h-screen place-items-center">
+        <FadeLoading className="soft h-24 w-64 rounded-2xl" />
+      </LoadingScreen>
+    );
+  }
   if (!questions.length) {
     return (
       <div className="grid min-h-screen place-items-center p-6">

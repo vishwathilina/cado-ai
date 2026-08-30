@@ -1,31 +1,33 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import { THEME_STORAGE_KEY } from "@/lib/theme-script";
+import { applyTheme, runThemeTransition, type ThemeTransitionOrigin } from "@/lib/theme-transition";
 
 type Theme = "light" | "dark" | "system";
+
+type SetThemeOptions = {
+  origin?: ThemeTransitionOrigin;
+  animate?: boolean;
+};
 
 type ThemeContextValue = {
   theme: Theme;
   resolvedTheme: "light" | "dark" | undefined;
-  setTheme: (theme: Theme) => void;
+  setTheme: (theme: Theme, options?: SetThemeOptions) => void;
+  toggleTheme: (origin?: ThemeTransitionOrigin) => void;
 };
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme: "system",
   resolvedTheme: undefined,
   setTheme: () => {},
+  toggleTheme: () => {},
 });
 
 function systemTheme(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-function applyTheme(resolved: "light" | "dark") {
-  const root = document.documentElement;
-  root.classList.remove("light", "dark");
-  root.classList.add(resolved);
-  root.style.colorScheme = resolved;
 }
 
 function readStoredTheme(): Theme {
@@ -49,8 +51,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setThemeState((current) => {
         if (current === "system") {
           const next = systemTheme();
-          setResolvedTheme(next);
-          applyTheme(next);
+          runThemeTransition(
+            () => {
+              flushSync(() => setResolvedTheme(next));
+              applyTheme(next);
+            },
+            { to: next },
+          );
         }
         return current;
       });
@@ -59,17 +66,38 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => media.removeEventListener("change", onChange);
   }, []);
 
-  const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
-    localStorage.setItem(THEME_STORAGE_KEY, next);
+  const setTheme = useCallback((next: Theme, options?: SetThemeOptions) => {
     const resolved = next === "system" ? systemTheme() : next;
-    setResolvedTheme(resolved);
-    applyTheme(resolved);
+    const shouldAnimate = options?.animate ?? true;
+
+    const commit = () => {
+      flushSync(() => {
+        setThemeState(next);
+        setResolvedTheme(resolved);
+      });
+      localStorage.setItem(THEME_STORAGE_KEY, next);
+      applyTheme(resolved);
+    };
+
+    if (!shouldAnimate) {
+      commit();
+      return;
+    }
+
+    runThemeTransition(commit, { origin: options?.origin, to: resolved });
   }, []);
 
+  const toggleTheme = useCallback(
+    (origin?: ThemeTransitionOrigin) => {
+      const current = resolvedTheme ?? systemTheme();
+      setTheme(current === "dark" ? "light" : "dark", { origin, animate: true });
+    },
+    [resolvedTheme, setTheme],
+  );
+
   const value = useMemo(
-    () => ({ theme, resolvedTheme, setTheme }),
-    [theme, resolvedTheme, setTheme],
+    () => ({ theme, resolvedTheme, setTheme, toggleTheme }),
+    [theme, resolvedTheme, setTheme, toggleTheme],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

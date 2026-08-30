@@ -5,8 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { EditorialAppPage, EditorialHero } from "@/components/editorial/editorial-app-page";
+import { FadeIn, FadeLoading, FadeLoadingGroup } from "@/components/page-transition";
 import { Icon } from "@/components/icon";
-import { FadeIn } from "@/components/page-transition";
+import { useMotionSmoothScroll } from "@/hooks/use-motion-smooth-scroll";
 import { api, StudySet } from "@/lib/api";
 
 function dayLabel(iso: string) {
@@ -28,6 +29,7 @@ function counts(set: StudySet) {
 }
 
 export default function HistoryPage() {
+  useMotionSmoothScroll();
   const [sets, setSets] = useState<StudySet[] | null>(null);
   const [error, setError] = useState("");
 
@@ -65,11 +67,11 @@ export default function HistoryPage() {
   if (!sets) {
     return (
       <EditorialAppPage>
-        <div className="animate-pulse space-y-5">
-          <div className="editorial-card h-28" />
-          <div className="editorial-card h-40" />
-          <div className="editorial-card h-40" />
-        </div>
+        <FadeLoadingGroup className="space-y-5">
+          <FadeLoading className="editorial-card h-28" />
+          <FadeLoading className="editorial-card h-40" />
+          <FadeLoading className="editorial-card h-40" />
+        </FadeLoadingGroup>
       </EditorialAppPage>
     );
   }
