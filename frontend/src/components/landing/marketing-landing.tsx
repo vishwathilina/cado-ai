@@ -13,7 +13,7 @@ import { Footer } from "@/components/footer";
 import { MarketingHeader } from "@/components/marketing-header";
 import { PricingSection } from "@/components/pricing-section";
 import { SideNav } from "@/components/side-nav";
-import { useMarketingSmoothScroll } from "@/components/landing/use-marketing-smooth-scroll";
+import { refreshMarketingScrollTriggers, reveal } from "@/lib/marketing-scroll-animations";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -24,10 +24,11 @@ const agentChips = [
   "Week plan generated",
 ];
 
+/** Play once — no re-trigger when scrolling back up. */
+const once = { toggleActions: "play none none none" as const };
+
 export function MarketingLanding() {
   const root = useRef<HTMLDivElement>(null);
-
-  useMarketingSmoothScroll();
 
   useGSAP(
     () => {
@@ -42,160 +43,220 @@ export function MarketingLanding() {
         .from(".hero-cta", { y: 20, opacity: 0, duration: 0.7 }, "-=0.45")
         .from(
           ".hero-visual",
-          { scale: 0.92, opacity: 0, rotate: -2, duration: 1.1, ease: "power3.out" },
+          { y: 20, opacity: 0, duration: 0.95, ease: "power3.out" },
           "-=0.75",
         );
 
       gsap.to(".hero-visual", {
-        y: -10,
-        duration: 2.8,
+        y: -6,
+        duration: 3.4,
         repeat: -1,
         yoyo: true,
         ease: "sine.inOut",
-        delay: 1.2,
+        delay: 1,
       });
 
-      gsap.from(".use-cases-copy > *", {
+      gsap.from(".use-cases-copy > *", reveal({
         scrollTrigger: {
           trigger: "#use-cases",
-          start: "top 80%",
+          start: "top 88%",
+          ...once,
         },
-        y: 36,
+        y: 40,
         opacity: 0,
-        duration: 0.85,
-        stagger: 0.1,
+        duration: 0.9,
+        stagger: 0.12,
         ease: "power3.out",
-      });
+      }));
 
-      gsap.from(".use-cases-prompt", {
+      gsap.from(".use-cases-prompt", reveal({
         scrollTrigger: {
           trigger: ".use-cases-visual",
-          start: "top 72%",
+          start: "top 82%",
+          ...once,
         },
         y: 56,
         opacity: 0,
         scale: 0.96,
         duration: 1,
         ease: "power3.out",
-      });
+      }));
 
       gsap.to(".use-cases-visual .use-cases-image", {
         scrollTrigger: {
           trigger: ".use-cases-visual",
           start: "top bottom",
           end: "bottom top",
-          scrub: 1.2,
+          scrub: 1.1,
         },
-        yPercent: 10,
+        yPercent: 8,
         ease: "none",
       });
 
-      gsap.from("#command-center .section-heading > *", {
+      gsap.from("#command-center .section-heading > *", reveal({
         scrollTrigger: {
           trigger: "#command-center",
-          start: "top 78%",
+          start: "top 86%",
+          ...once,
         },
         y: 32,
         opacity: 0,
         duration: 0.85,
-        stagger: 0.12,
+        stagger: 0.14,
         ease: "power3.out",
-      });
+      }));
 
-      gsap.from(".feature-card", {
+      gsap.from(".feature-card", reveal({
         scrollTrigger: {
           trigger: "#command-center",
-          start: "top 70%",
+          start: "top 78%",
+          ...once,
         },
         y: 48,
         opacity: 0,
+        scale: 0.97,
         duration: 0.75,
-        stagger: 0.08,
+        stagger: {
+          each: 0.08,
+          from: "start",
+        },
         ease: "power2.out",
-      });
+      }));
 
-      gsap.from(".agents-copy > *", {
+      gsap.from(".agents-copy > *", reveal({
         scrollTrigger: {
           trigger: "#agents",
-          start: "top 80%",
+          start: "top 88%",
+          ...once,
         },
-        y: 36,
+        x: -28,
         opacity: 0,
         duration: 0.85,
         stagger: 0.1,
         ease: "power3.out",
-      });
+      }));
 
-      gsap.from(".agents-panel", {
+      gsap.from(".agents-panel", reveal({
         scrollTrigger: {
           trigger: ".agents-visual",
-          start: "top 72%",
+          start: "top 82%",
+          ...once,
         },
         y: 64,
         opacity: 0,
         scale: 0.95,
         duration: 1.05,
         ease: "power3.out",
-      });
+      }));
 
-      gsap.from(".agents-chip", {
+      gsap.from(".agents-chip", reveal({
         scrollTrigger: {
           trigger: ".agents-panel",
-          start: "top 75%",
+          start: "top 78%",
+          ...once,
         },
         y: 16,
         opacity: 0,
+        scale: 0.92,
         duration: 0.55,
         stagger: 0.07,
         ease: "power2.out",
-        delay: 0.15,
-      });
+        delay: 0.12,
+      }));
 
       gsap.to(".agents-visual .agents-image", {
         scrollTrigger: {
           trigger: ".agents-visual",
           start: "top bottom",
           end: "bottom top",
-          scrub: 1.2,
+          scrub: 1.1,
         },
-        yPercent: 8,
+        yPercent: 6,
         ease: "none",
       });
 
-      gsap.from(".landing-quote", {
+      gsap.from(".landing-quote", reveal({
         scrollTrigger: {
           trigger: ".landing-quote",
-          start: "top 85%",
+          start: "top 88%",
+          ...once,
         },
-        y: 28,
+        y: 24,
         opacity: 0,
+        scale: 0.98,
         duration: 1,
         ease: "power3.out",
-      });
+      }));
 
-      gsap.from("#pricing .section-heading > *, #pricing .pricing-card", {
+      gsap.from("#pricing .section-heading > *", reveal({
         scrollTrigger: {
           trigger: "#pricing",
-          start: "top 78%",
+          start: "top 86%",
+          ...once,
         },
-        y: 40,
+        y: 36,
+        opacity: 0,
+        duration: 0.85,
+        stagger: 0.1,
+        ease: "power3.out",
+      }));
+
+      gsap.from(".pricing-card", reveal({
+        scrollTrigger: {
+          trigger: "#pricing .pricing-grid",
+          start: "top 82%",
+          ...once,
+        },
+        y: 44,
+        opacity: 0,
+        scale: 0.98,
+        duration: 0.8,
+        stagger: 0.1,
+        ease: "power2.out",
+      }));
+
+      gsap.from("#faq .section-heading > *", reveal({
+        scrollTrigger: {
+          trigger: "#faq",
+          start: "top 88%",
+          ...once,
+        },
+        y: 28,
         opacity: 0,
         duration: 0.8,
         stagger: 0.1,
         ease: "power3.out",
-      });
+      }));
 
-      gsap.from("#faq .section-heading > *, #faq details", {
+      gsap.from(".faq-item", reveal({
         scrollTrigger: {
-          trigger: "#faq",
-          start: "top 80%",
+          trigger: "#faq .faq-list",
+          start: "top 84%",
+          ...once,
         },
-        y: 32,
+        y: 24,
         opacity: 0,
-        duration: 0.75,
+        duration: 0.7,
         stagger: 0.08,
         ease: "power2.out",
-      });
+      }));
+
+      gsap.from(".landing-footer", reveal({
+        scrollTrigger: {
+          trigger: ".landing-footer",
+          start: "top 92%",
+          ...once,
+        },
+        y: 20,
+        opacity: 0,
+        duration: 0.75,
+        ease: "power2.out",
+      }));
+
+      const refresh = () => refreshMarketingScrollTriggers();
+      requestAnimationFrame(refresh);
+      window.addEventListener("load", refresh);
+      return () => window.removeEventListener("load", refresh);
     },
     { scope: root },
   );
@@ -289,7 +350,7 @@ export function MarketingLanding() {
             </div>
           </section>
 
-          <section id="command-center" className="scroll-mt-20 py-32">
+          <section id="command-center" className="scroll-mt-20 py-20">
             <header className="section-heading">
               <h2 className="text-center font-serif text-3xl font-medium tracking-tight text-balance md:text-4xl">
                 A semester&apos;s worth of things Cado can do
@@ -362,7 +423,7 @@ export function MarketingLanding() {
             </div>
           </section>
 
-          <p className="landing-quote mx-auto mt-10 max-w-xl pb-24 text-center font-serif text-xl leading-snug text-balance text-black/80 md:text-2xl">
+          <p className="landing-quote mx-auto mt-8 max-w-xl pb-10 text-center font-serif text-xl leading-snug text-balance text-black/80 md:text-2xl">
             The best study sessions are the ones you don&apos;t have to plan yourself.
           </p>
 
@@ -371,7 +432,9 @@ export function MarketingLanding() {
         </div>
       </div>
 
-      <Footer />
+      <div className="landing-footer">
+        <Footer />
+      </div>
     </main>
   );
 }

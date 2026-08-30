@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { isSamePageHashLink, scrollToHref, scrollToSection } from "@/lib/lenis-scroll";
+import { ScrollProgress } from "@/components/landing/scroll-progress";
 import { useMarketingSmoothScroll } from "@/components/landing/use-marketing-smooth-scroll";
 
 export function MarketingSmoothScroll() {
@@ -42,5 +43,5 @@ export function MarketingSmoothScroll() {
     return () => window.clearTimeout(timer);
   }, [pathname]);
 
-  return null;
+  return <ScrollProgress />;
 }

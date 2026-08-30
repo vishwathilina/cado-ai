@@ -9,6 +9,6 @@ export function useMarketingSmoothScroll() {
 
   useEffect(() => {
     if (pathname !== "/") return;
-    return bindLenisScroll(MARKETING_LENIS_OPTIONS);
+    return bindLenisScroll(MARKETING_LENIS_OPTIONS, true);
   }, [pathname]);
 }

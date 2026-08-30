@@ -56,8 +56,8 @@ const plans = [
 
 export function PricingSection() {
   return (
-    <section id="pricing" aria-labelledby="pricing-heading" className="py-24 scroll-mt-20">
-      <header className="max-w-2xl">
+    <section id="pricing" aria-labelledby="pricing-heading" className="pt-12 pb-20 scroll-mt-20">
+      <header className="section-heading max-w-2xl">
         <p className="text-xs uppercase tracking-[0.18em] text-black/50">Pricing</p>
         <h2
           id="pricing-heading"
@@ -71,11 +71,11 @@ export function PricingSection() {
         </p>
       </header>
 
-      <div className="mt-14 grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="pricing-grid mt-14 grid grid-cols-1 lg:grid-cols-3 gap-5">
         {plans.map((plan) => (
           <article
             key={plan.name}
-            className={`rounded-2xl border p-6 flex flex-col ${
+            className={`pricing-card rounded-2xl border p-6 flex flex-col ${
               plan.featured ? "border-black bg-black text-white" : "border-black/8 bg-white"
             }`}
           >

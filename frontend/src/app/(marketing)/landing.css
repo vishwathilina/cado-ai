@@ -17,6 +17,25 @@ html.lenis body {
   overflow: hidden;
 }
 
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  height: 2px;
+  pointer-events: none;
+  background: rgb(0 0 0 / 0.04);
+}
+
+.scroll-progress-bar {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #4f8a3a 0%, #8fbf4a 55%, #c5e07a 100%);
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

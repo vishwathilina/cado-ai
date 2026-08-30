@@ -1,6 +1,12 @@
 import Lenis from "lenis";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { refreshMarketingScrollTriggers } from "@/lib/marketing-scroll-animations";
+
+gsap.registerPlugin(ScrollTrigger);
 
 let lenis: Lenis | null = null;
+let gsapTicker: ((time: number) => void) | null = null;
 
 export type LenisScrollOptions = {
   lerp?: number;
@@ -9,18 +15,22 @@ export type LenisScrollOptions = {
   touchMultiplier?: number;
 };
 
+/** Weighted inertia — fluid without feeling sluggish or bouncy. */
 export const MARKETING_LENIS_OPTIONS: LenisScrollOptions = {
-  lerp: 0.08,
-  duration: 1.2,
-  wheelMultiplier: 0.85,
-  touchMultiplier: 1.5,
+  lerp: 0.095,
+  duration: 1.1,
+  wheelMultiplier: 0.92,
+  touchMultiplier: 1.4,
 };
 
 export function getLenis() {
   return lenis;
 }
 
-export function bindLenisScroll(options: LenisScrollOptions = MARKETING_LENIS_OPTIONS) {
+export function bindLenisScroll(
+  options: LenisScrollOptions = MARKETING_LENIS_OPTIONS,
+  syncGsap = false,
+) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (reduced) return () => {};
 
@@ -32,10 +42,24 @@ export function bindLenisScroll(options: LenisScrollOptions = MARKETING_LENIS_OP
     wheelMultiplier: options.wheelMultiplier ?? MARKETING_LENIS_OPTIONS.wheelMultiplier,
     touchMultiplier: options.touchMultiplier ?? MARKETING_LENIS_OPTIONS.touchMultiplier,
     smoothWheel: true,
-    autoRaf: true,
+    autoRaf: !syncGsap,
   });
 
+  if (syncGsap) {
+    lenis.on("scroll", ScrollTrigger.update);
+    gsapTicker = (time: number) => {
+      lenis?.raf(time * 1000);
+    };
+    gsap.ticker.add(gsapTicker);
+    gsap.ticker.lagSmoothing(0);
+    requestAnimationFrame(() => refreshMarketingScrollTriggers());
+  }
+
   return () => {
+    if (gsapTicker) {
+      gsap.ticker.remove(gsapTicker);
+      gsapTicker = null;
+    }
     lenis?.destroy();
     lenis = null;
     document.documentElement.classList.remove("lenis", "lenis-smooth", "lenis-scrolling");

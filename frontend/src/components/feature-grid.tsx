@@ -30,13 +30,13 @@ function SpreadsheetPreview() {
               {r.co}
             </div>
             <div
-              className="bg-white px-2 py-1.5 text-black/70 opacity-0 -translate-x-1 transition-all duration-500 group-hover:opacity-100 group-hover:translate-x-0"
+              className="bg-white px-2 py-1.5 text-black/70 opacity-50 transition-all duration-500 group-hover:opacity-100 group-hover:translate-x-0"
               style={{ transitionDelay: `${i * 80 + 200}ms` }}
             >
               {r.arr}
             </div>
             <div
-              className="bg-white px-2 py-1.5 text-emerald-600 opacity-0 -translate-x-1 transition-all duration-500 group-hover:opacity-100 group-hover:translate-x-0"
+              className="bg-white px-2 py-1.5 text-emerald-600 opacity-50 transition-all duration-500 group-hover:opacity-100 group-hover:translate-x-0"
               style={{ transitionDelay: `${i * 80 + 400}ms` }}
             >
               {r.growth}
@@ -111,7 +111,9 @@ function ResumeLines() {
           ) : (
             <div
               key={i}
-              className={`${l.h} rounded-sm ${l.strong ? "bg-black/80" : "bg-black/15"} w-0 transition-[width] duration-700 ease-out group-hover:w-[var(--target-w)]`}
+              className={`${l.h} w-[var(--target-w)] rounded-sm transition-all duration-700 ease-out ${
+                l.strong ? "bg-black/70 group-hover:bg-black/80" : "bg-black/12 group-hover:bg-black/15"
+              }`}
               style={
                 {
                   ["--target-w" as string]: l.w,
@@ -281,7 +283,7 @@ export function FeatureGrid() {
         return (
           <article
             key={f.title}
-            className="group relative rounded-2xl border border-black/8 bg-white overflow-hidden transition-all duration-300 hover:border-black/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:-translate-y-0.5"
+            className="feature-card group relative rounded-2xl border border-black/8 bg-white overflow-hidden transition-all duration-300 hover:border-black/20 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] hover:-translate-y-0.5"
           >
             <div className="relative h-44 bg-gradient-to-b from-neutral-50 to-white border-b border-black/5 overflow-hidden">
               <Preview />

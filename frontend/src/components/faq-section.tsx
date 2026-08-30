@@ -21,7 +21,7 @@ export function FaqSection() {
   return (
     <section id="faq" aria-labelledby="faq-heading" className="py-24 scroll-mt-20">
       <div className="mx-auto max-w-3xl">
-        <header className="mb-12 text-center">
+        <header className="section-heading mb-12 text-center">
           <p className="text-xs uppercase tracking-[0.18em] text-black/50">Questions</p>
           <h2
             id="faq-heading"
@@ -30,9 +30,9 @@ export function FaqSection() {
             Frequently asked questions
           </h2>
         </header>
-        <dl className="divide-y divide-black/10 border-y border-black/10">
+        <dl className="faq-list divide-y divide-black/10 border-y border-black/10">
           {faqs.map((item) => (
-            <div key={item.q} className="py-6">
+            <div key={item.q} className="faq-item py-6">
               <dt className="font-semibold text-base leading-snug text-balance">{item.q}</dt>
               <dd className="mt-2 text-sm text-black/65 leading-relaxed">{item.a}</dd>
             </div>
