@@ -40,21 +40,7 @@ export function MarketingLanding() {
       heroTl
         .from(".hero-line", { yPercent: 110, opacity: 0, duration: 1.05, stagger: 0.11 })
         .from(".hero-copy", { y: 28, opacity: 0, duration: 0.8 }, "-=0.55")
-        .from(".hero-cta", { y: 20, opacity: 0, duration: 0.7 }, "-=0.45")
-        .from(
-          ".hero-visual",
-          { y: 20, opacity: 0, duration: 0.95, ease: "power3.out" },
-          "-=0.75",
-        );
-
-      gsap.to(".hero-visual", {
-        y: -6,
-        duration: 3.4,
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut",
-        delay: 1,
-      });
+        .from(".hero-cta", { y: 20, opacity: 0, duration: 0.7 }, "-=0.45");
 
       gsap.from(".use-cases-copy > *", reveal({
         scrollTrigger: {
