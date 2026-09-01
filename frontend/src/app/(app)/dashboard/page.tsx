@@ -14,7 +14,7 @@ import { Icon } from "@/components/icon";
 import { StudyPlans, type StudyPlan } from "@/components/study-plans";
 import { FadeIn, FadeLoading, FadeLoadingGroup } from "@/components/page-transition";
 import { ProgressBar } from "@/components/ui";
-import { useMotionSmoothScroll } from "@/hooks/use-motion-smooth-scroll";
+import { useLenisSmoothScroll } from "@/hooks/use-lenis-smooth-scroll";
 import { api } from "@/lib/api";
 import { isoDate } from "@/lib/dates";
 
@@ -96,7 +96,7 @@ function weekDays(anchor = new Date()) {
 }
 
 export default function DashboardPage() {
-  useMotionSmoothScroll();
+  useLenisSmoothScroll();
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");

@@ -188,7 +188,7 @@ export function MarketingLanding() {
         ease: "power3.out",
       }));
 
-      gsap.from("#pricing .section-heading > *", reveal({
+      gsap.from("#pricing .section-heading > p", reveal({
         scrollTrigger: {
           trigger: "#pricing",
           start: "top 86%",

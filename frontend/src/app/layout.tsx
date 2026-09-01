@@ -17,11 +17,6 @@ export const metadata: Metadata = {
     template: "%s · Cado AI",
   },
   description: "Turn notes into clear explanations, flashcards, quizzes, and a personal study plan.",
-  icons: {
-    icon: [{ url: "/logo2.jpg", type: "image/jpeg" }],
-    apple: "/logo2.jpg",
-    shortcut: "/logo2.jpg",
-  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

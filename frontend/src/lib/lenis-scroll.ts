@@ -16,19 +16,39 @@ export type LenisScrollOptions = {
 };
 
 /** Weighted inertia — fluid without feeling sluggish or bouncy. */
-export const MARKETING_LENIS_OPTIONS: LenisScrollOptions = {
+export const DEFAULT_LENIS_OPTIONS: LenisScrollOptions = {
   lerp: 0.095,
   duration: 1.1,
   wheelMultiplier: 0.92,
   touchMultiplier: 1.4,
 };
 
+/** @deprecated Use DEFAULT_LENIS_OPTIONS */
+export const MARKETING_LENIS_OPTIONS = DEFAULT_LENIS_OPTIONS;
+
+function isScrollableElement(element: HTMLElement) {
+  const style = window.getComputedStyle(element);
+  const overflowY = style.overflowY;
+  if (overflowY !== "auto" && overflowY !== "scroll" && overflowY !== "overlay") return false;
+  return element.scrollHeight > element.clientHeight;
+}
+
+function shouldPreventLenis(node: HTMLElement) {
+  let element: HTMLElement | null = node;
+  while (element && element !== document.documentElement) {
+    if (element.hasAttribute("data-lenis-prevent")) return true;
+    if (isScrollableElement(element)) return true;
+    element = element.parentElement;
+  }
+  return false;
+}
+
 export function getLenis() {
   return lenis;
 }
 
 export function bindLenisScroll(
-  options: LenisScrollOptions = MARKETING_LENIS_OPTIONS,
+  options: LenisScrollOptions = DEFAULT_LENIS_OPTIONS,
   syncGsap = false,
 ) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -37,12 +57,13 @@ export function bindLenisScroll(
   document.documentElement.classList.add("lenis", "lenis-smooth");
 
   lenis = new Lenis({
-    lerp: options.lerp ?? MARKETING_LENIS_OPTIONS.lerp,
-    duration: options.duration ?? MARKETING_LENIS_OPTIONS.duration,
-    wheelMultiplier: options.wheelMultiplier ?? MARKETING_LENIS_OPTIONS.wheelMultiplier,
-    touchMultiplier: options.touchMultiplier ?? MARKETING_LENIS_OPTIONS.touchMultiplier,
+    lerp: options.lerp ?? DEFAULT_LENIS_OPTIONS.lerp,
+    duration: options.duration ?? DEFAULT_LENIS_OPTIONS.duration,
+    wheelMultiplier: options.wheelMultiplier ?? DEFAULT_LENIS_OPTIONS.wheelMultiplier,
+    touchMultiplier: options.touchMultiplier ?? DEFAULT_LENIS_OPTIONS.touchMultiplier,
     smoothWheel: true,
     autoRaf: !syncGsap,
+    prevent: shouldPreventLenis,
   });
 
   if (syncGsap) {

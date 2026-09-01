@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { ScrollFillHeading } from "@/components/landing/scroll-fill-heading";
 
 const plans = [
   {
@@ -59,12 +60,12 @@ export function PricingSection() {
     <section id="pricing" aria-labelledby="pricing-heading" className="pt-12 pb-20 scroll-mt-20">
       <header className="section-heading max-w-2xl">
         <p className="text-xs uppercase tracking-[0.18em] text-black/50">Pricing</p>
-        <h2
+        <ScrollFillHeading
           id="pricing-heading"
           className="mt-3 font-serif text-3xl md:text-5xl font-medium tracking-tight text-balance leading-[1.02]"
         >
           Simple plans for serious studying.
-        </h2>
+        </ScrollFillHeading>
         <p className="mt-6 text-sm text-black/60 leading-relaxed max-w-lg">
           Start free with uploads, learn mode, quizzes, and a weekly plan. Upgrade when you want
           unlimited sets, the notes tutor, and classroom sharing.
