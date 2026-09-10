@@ -70,17 +70,17 @@ class GeneratedItem(BaseModel):
     explanation: str | None = None
     image_search_query: str | None = Field(
         None,
-        max_length=80,
-        description="3-7 words: concrete concept + visual type (diagram/chart/map) for Google Images",
+        max_length=100,
+        description="4-8 words: disambiguated concept + visual type for Google Images",
     )
-    imageSearchQuery: str | None = Field(None, max_length=80)
+    imageSearchQuery: str | None = Field(None, max_length=100)
 
     @model_validator(mode="after")
     def _normalize_image_query(self) -> "GeneratedItem":
         # Accept either snake or camel, normalize to snake
         raw = self.image_search_query or self.imageSearchQuery
         if raw:
-            q = " ".join(raw.strip().split())[:80]
+            q = " ".join(raw.strip().split())[:100]
             # reject placeholders
             if q.lower() in {"", "none", "n/a", "na", "null"}:
                 q = None

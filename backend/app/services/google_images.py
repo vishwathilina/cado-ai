@@ -57,9 +57,44 @@ _VISUAL_HINTS = (
     "infographic",
     "cross section",
     "cross-section",
+    "architecture",
     "photograph",
     "photo of",
+)
+
+_CLOUD_CONTEXT_RE = re.compile(
+    r"\b(azure|bicep|aws|amazon web services|gcp|google cloud|kubernetes|terraform|"
+    r"devops|cloud|microsoft|resource manager|arm template|iac|infrastructure as code)\b",
+    re.IGNORECASE,
+)
+
+_ANATOMY_NOISE = (
     "anatomy",
+    "anatomical",
+    "muscle",
+    "muscles",
+    "brachial",
+    "ulnar",
+    "deltoid",
+    "humerus",
+    "skeleton",
+    "tendon",
+    "nerves",
+    "shoulder joint",
+    "human arm",
+    "supraspinatus",
+    "triceps",
+)
+
+_COURSE_BANNER_NOISE = (
+    "coursera",
+    "udemy",
+    "edx.org",
+    "skillshare",
+    "deep learning engineering",
+    "course certificate",
+    "online course",
+    "linkedin learning",
 )
 
 _STOP_TOKENS = {
@@ -94,29 +129,57 @@ _GOOGLE_URL = "https://www.google.com/search"
 _ISCHJ_RE = re.compile(r'"ischj"\s*:\s*\{', re.MULTILINE)
 
 
-def enrich_image_query(query: str, heading: str | None = None) -> str:
-    """Turn vague AI queries into more educational, searchable phrases."""
+def enrich_image_query(query: str, heading: str | None = None, context: str | None = None) -> str:
+    """Turn vague/ambiguous AI queries into educational, disambiguated search phrases."""
     clean = " ".join((query or "").split()).strip()
     head = " ".join((heading or "").split()).strip()
+    extra = " ".join((context or "").split()).strip()
+    domain = f"{clean} {head} {extra}".strip()
     if not clean or clean.lower() in {"none", "n/a", "na", "null"}:
         clean = head
     if not clean:
         return ""
     if _VAGUE_QUERY_RE.search(clean) and head:
         clean = head
+
+    # Disambiguate tech acronyms using surrounding explanation/heading text.
+    if _CLOUD_CONTEXT_RE.search(domain):
+        if re.search(r"\bARM\b", clean) and "resource manager" not in clean.lower():
+            clean = re.sub(r"\bARM\b", "Azure Resource Manager", clean)
+        if "azure" not in clean.lower() and re.search(r"\bazure\b", domain, re.I):
+            clean = f"Azure {clean}"
+        if "microsoft" not in clean.lower() and re.search(r"\bportal\b", clean, re.I):
+            clean = f"Microsoft {clean}"
+
     low = clean.lower()
     if not any(hint in low for hint in _VISUAL_HINTS):
-        # Prefer textbook-style hits over lifestyle stock.
-        clean = f"{clean} diagram"
-    return " ".join(clean.split())[:80]
+        # Prefer textbook-style hits over lifestyle stock / course banners.
+        if _CLOUD_CONTEXT_RE.search(domain):
+            clean = f"{clean} architecture diagram"
+        else:
+            clean = f"{clean} diagram"
+    return " ".join(clean.split())[:100]
 
 
-def _query_tokens(query: str) -> list[str]:
-    return [
-        token
-        for token in re.findall(r"[a-z0-9]+", (query or "").lower())
-        if len(token) > 2 and token not in _STOP_TOKENS
-    ]
+def _query_is_cloud(query: str) -> bool:
+    return bool(_CLOUD_CONTEXT_RE.search(query or ""))
+
+
+def _wants_diagram(query: str) -> bool:
+    low = (query or "").lower()
+    return any(word in low for word in ("diagram", "architecture", "schematic", "chart", "comparison", "infographic"))
+
+
+def _is_off_topic(query: str, item: dict) -> bool:
+    """Reject common wrong-sense hits (human arm for Azure ARM, Coursera banners for charts)."""
+    blob = _candidate_text(item)
+    if not blob.strip():
+        return False
+    if _query_is_cloud(query) and any(noise in blob for noise in _ANATOMY_NOISE):
+        return True
+    if _wants_diagram(query) and any(noise in blob for noise in _COURSE_BANNER_NOISE):
+        return True
+    return False
 
 
 def _candidate_text(item: dict) -> str:
@@ -157,6 +220,14 @@ def _candidate_text(item: dict) -> str:
     return " ".join(parts).lower()
 
 
+def _query_tokens(query: str) -> list[str]:
+    return [
+        token
+        for token in re.findall(r"[a-z0-9]+", (query or "").lower())
+        if len(token) > 2 and token not in _STOP_TOKENS
+    ]
+
+
 def _relevance_score(query: str, item: dict) -> int:
     tokens = _query_tokens(query)
     if not tokens:
@@ -171,7 +242,7 @@ def _relevance_score(query: str, item: dict) -> int:
 
 def _build_google_url(query: str) -> str:
     # tbm=isch = image search; isz:m prefers medium+ (less tiny icons)
-    q = quote_plus(query.strip()[:80])
+    q = quote_plus(query.strip()[:100])
     return (
         f"{_GOOGLE_URL}?q={q}&tbm=isch&safe=active&hl=en&gl=us"
         "&tbs=isz:m&udm=2&source=hp&biw=1280&bih=720&ei=1"
@@ -229,6 +300,8 @@ def _parse_ischj_candidates(text: str) -> list[dict]:
 
 def _score_candidate(item: dict, query: str = "") -> int:
     """Score per size/host rules plus query relevance. Returns -1 to reject."""
+    if query and _is_off_topic(query, item):
+        return -1
     orig = item.get("original_image")
     url = ""
     if isinstance(orig, dict):
@@ -248,6 +321,8 @@ def _score_candidate(item: dict, query: str = "") -> int:
     if "encrypted-tbn" in low:
         return -1
     if any(skip in low for skip in _SKIP_SUBSTRS):
+        return -1
+    if any(noise in low for noise in _COURSE_BANNER_NOISE):
         return -1
     try:
         if not w:
@@ -280,7 +355,9 @@ def _score_candidate(item: dict, query: str = "") -> int:
             "nih.gov",
             "geeksforgeeks",
             "tutorialspoint",
-            "w3schools",
+            "learn.microsoft.com",
+            "microsoft.com/en-us/azure",
+            "docs.microsoft",
             "edu/",
             ".edu/",
         )
@@ -289,11 +366,15 @@ def _score_candidate(item: dict, query: str = "") -> int:
     if any(stock in low for stock in ("dreamstime", "adobestock", "123rf")):
         score -= 12
     compact = low.replace("-", "").replace("_", "")
-    if any(hint.replace(" ", "") in compact for hint in ("diagram", "chart", "schematic", "labeled", "anatomy")):
+    if any(hint.replace(" ", "") in compact for hint in ("diagram", "chart", "schematic", "labeled", "architecture")):
         score += 12
-    if any(word in low for word in ("stock", "shutter", "lifestyle", "workspace", "mockup")):
+    if any(word in low for word in ("stock", "shutter", "lifestyle", "workspace", "mockup", "coursera", "udemy")):
         score -= 10
-    score += _relevance_score(query, item)
+    relevance = _relevance_score(query, item)
+    score += relevance
+    # Prefer real concept overlap when title/url text exists.
+    if query and _candidate_text(item).strip() and relevance == 0 and _wants_diagram(query):
+        score -= 18
     score += min(len(url) // 60, 3)
     return score
 
@@ -318,8 +399,10 @@ def pick_https_image(candidates: list[dict], query: str = "") -> str | None:
     if not ranked:
         return None
     ranked.sort(key=lambda row: (row[0], row[1]), reverse=True)
-    # If any candidate has title/url overlap with the query, prefer among those.
     with_overlap = [row for row in ranked if row[1] > 0]
+    # For diagram searches, require some title/url overlap when any overlap exists in the pool.
+    if _wants_diagram(query) and with_overlap:
+        return with_overlap[0][2]
     pool = with_overlap if with_overlap else ranked
     return pool[0][2]
 
@@ -461,12 +544,13 @@ async def find_google_image_url(
     query: str,
     *,
     heading: str | None = None,
+    context: str | None = None,
     timeout: float = 8.0,
 ) -> str | None:
     """Fetch Google Images search page like a browser, parse JSON, pick best https image.
     Tries Google (ischj) first, then Bing, then DuckDuckGo. Retries once after 800ms.
     """
-    clean = enrich_image_query(query, heading)
+    clean = enrich_image_query(query, heading, context)
     if not clean:
         return None
 
@@ -547,7 +631,12 @@ async def fetch_section_images(
                 await asyncio.sleep(0.05 * idx)
             query = str(results[idx].get("imageSearchQuery") or results[idx].get("image_search_query") or "").strip()
             heading = str(results[idx].get("prompt") or results[idx].get("heading") or "").strip()
-            url = await find_google_image_url(query, heading=heading or None) if (query or heading) else None
+            context = str(results[idx].get("answer") or results[idx].get("context") or "").strip()
+            url = (
+                await find_google_image_url(query, heading=heading or None, context=context or None)
+                if (query or heading)
+                else None
+            )
             results[idx]["imageUrl"] = url
             results[idx]["image_url"] = url
             async with lock:
@@ -581,7 +670,12 @@ async def fetch_and_persist_study_item_images(db, study_set_id) -> int:
         return 0
 
     sections = [
-        {"id": str(r.id), "imageSearchQuery": r.image_search_query, "prompt": r.prompt}
+        {
+            "id": str(r.id),
+            "imageSearchQuery": r.image_search_query,
+            "prompt": r.prompt,
+            "answer": (r.answer or "")[:240],
+        }
         for r in targets
     ]
 

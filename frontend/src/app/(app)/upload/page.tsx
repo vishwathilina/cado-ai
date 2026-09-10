@@ -183,6 +183,12 @@ export default function UploadPage() {
     try {
       setStage("uploading");
       uploadError.current = "";
+      // Warm the session so UploadThing sees access_token (page gate also allows refresh_token alone).
+      try {
+        await api("/auth/me");
+      } catch {
+        throw new Error("Sign in before uploading");
+      }
       const uploaded = await Promise.race([
         startUpload([file]),
         new Promise<null>((_, reject) => {
