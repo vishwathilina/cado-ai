@@ -68,7 +68,11 @@ class GeneratedItem(BaseModel):
     answer: str = Field(min_length=1, max_length=8000)
     options: list[str] | None = None
     explanation: str | None = None
-    image_search_query: str | None = Field(None, max_length=80, description="2-6 words neutral visual for Google Images")
+    image_search_query: str | None = Field(
+        None,
+        max_length=80,
+        description="3-7 words: concrete concept + visual type (diagram/chart/map) for Google Images",
+    )
     imageSearchQuery: str | None = Field(None, max_length=80)
 
     @model_validator(mode="after")

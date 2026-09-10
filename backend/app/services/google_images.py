@@ -1,8 +1,8 @@
 """Google Images fetcher — mimics browser, parses ischj JSON, picks best https image.
 
-Implements the flow user described:
- AI writes imageSearchQuery -> fetchSectionImages (2 workers, 350ms pause) -> findGoogleImageUrl
- -> fetch https://www.google.com/search?q=...&tbm=isch -> parse {"ischj":...} -> pickHttpsImage -> save sections.imageUrl
+Implements the flow:
+ AI writes imageSearchQuery -> enrich query -> fetchSectionImages (2 workers, 350ms pause)
+ -> findGoogleImageUrl -> parse candidates -> score by size + query relevance -> save image_url
 """
 
 from __future__ import annotations
@@ -33,22 +33,148 @@ _SKIP_SUBSTRS = (
     "istockphoto",
     "pinterest",
     "chegg",
+    "depositphotos",
+    "vectorstock",
+    "freepik",
 )
+
+_VAGUE_QUERY_RE = re.compile(
+    r"\b("
+    r"person reading|students? studying|open books?|books? on desk|library interior|"
+    r"classroom|students? in classroom|study notes|person by window|ancient library|"
+    r"happy student|people working|desk setup|notebook and pen"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_VISUAL_HINTS = (
+    "diagram",
+    "illustration",
+    "labeled",
+    "chart",
+    "map",
+    "schematic",
+    "infographic",
+    "cross section",
+    "cross-section",
+    "photograph",
+    "photo of",
+    "anatomy",
+)
+
+_STOP_TOKENS = {
+    "the",
+    "and",
+    "for",
+    "with",
+    "from",
+    "that",
+    "this",
+    "into",
+    "onto",
+    "over",
+    "under",
+    "about",
+    "image",
+    "images",
+    "picture",
+    "photo",
+    "of",
+    "a",
+    "an",
+    "to",
+    "in",
+    "on",
+    "or",
+}
 
 _GOOGLE_URL = "https://www.google.com/search"
 
-# Regex to find ischj block: {"ischj": ... }  — capture up to matching brace depth is hard,
-# so we grab the whole ischj metadata array via a simpler approach: find '"ischj":' then
-# extract the next balanced JSON object.
+# Regex to find ischj block: {"ischj": ... }
 _ISCHJ_RE = re.compile(r'"ischj"\s*:\s*\{', re.MULTILINE)
 
 
+def enrich_image_query(query: str, heading: str | None = None) -> str:
+    """Turn vague AI queries into more educational, searchable phrases."""
+    clean = " ".join((query or "").split()).strip()
+    head = " ".join((heading or "").split()).strip()
+    if not clean or clean.lower() in {"none", "n/a", "na", "null"}:
+        clean = head
+    if not clean:
+        return ""
+    if _VAGUE_QUERY_RE.search(clean) and head:
+        clean = head
+    low = clean.lower()
+    if not any(hint in low for hint in _VISUAL_HINTS):
+        # Prefer textbook-style hits over lifestyle stock.
+        clean = f"{clean} diagram"
+    return " ".join(clean.split())[:80]
+
+
+def _query_tokens(query: str) -> list[str]:
+    return [
+        token
+        for token in re.findall(r"[a-z0-9]+", (query or "").lower())
+        if len(token) > 2 and token not in _STOP_TOKENS
+    ]
+
+
+def _candidate_text(item: dict) -> str:
+    parts: list[str] = []
+
+    def push(value: object) -> None:
+        if isinstance(value, str) and value.strip():
+            parts.append(value)
+        elif isinstance(value, dict):
+            for nested in value.values():
+                push(nested)
+        elif isinstance(value, list):
+            for nested in value[:8]:
+                push(nested)
+
+    for key in (
+        "title",
+        "pt",
+        "st",
+        "alt",
+        "text",
+        "snippet",
+        "name",
+        "caption",
+        "ru",
+        "rh",
+        "id",
+    ):
+        push(item.get(key))
+    push(item.get("original_image"))
+    push(item.get("image"))
+    push(item.get("text_in_grid"))
+    orig = item.get("original_image")
+    url = str(orig.get("url") or "") if isinstance(orig, dict) else ""
+    if not url:
+        url = str(item.get("url") or item.get("ou") or "")
+    parts.append(url)
+    return " ".join(parts).lower()
+
+
+def _relevance_score(query: str, item: dict) -> int:
+    tokens = _query_tokens(query)
+    if not tokens:
+        return 0
+    blob = _candidate_text(item)
+    if not blob.strip():
+        return 0
+    hits = sum(1 for token in tokens if token in blob)
+    # Strongly prefer images whose title/url mention the same concept words.
+    return int(40 * hits / len(tokens))
+
+
 def _build_google_url(query: str) -> str:
-    # tbm=isch = image search, safe=active, plus generic params to look like browser
+    # tbm=isch = image search; isz:m prefers medium+ (less tiny icons)
     q = quote_plus(query.strip()[:80])
     return (
         f"{_GOOGLE_URL}?q={q}&tbm=isch&safe=active&hl=en&gl=us"
-        "&udm=2&source=hp&biw=1280&bih=720&ei=1"
+        "&tbs=isz:m&udm=2&source=hp&biw=1280&bih=720&ei=1"
     )
 
 
@@ -57,12 +183,6 @@ def _extract_ischj_json(text: str) -> dict | None:
     m = _ISCHJ_RE.search(text)
     if not m:
         return None
-    start = m.start()
-    # Find the JSON object starting at the opening brace of the outer object that contains ischj
-    # Walk backwards to find the '{' that starts the object containing ischj, then parse forward with counting
-    # Simpler: start at m.start()-1 and find opening brace, then count braces to extract
-    # The pattern in Google HTML is often: ...,"ischj":{"metadata":[...]}...
-    # So the value of ischj is a JSON object; we can extract it by counting braces from m.end()-1
     brace_start = m.end() - 1  # at '{'
     depth = 0
     in_str = False
@@ -97,11 +217,8 @@ def _parse_ischj_candidates(text: str) -> list[dict]:
     data = _extract_ischj_json(text)
     if not data:
         return []
-    # data is expected to have metadata: list
     meta = data.get("metadata") if isinstance(data, dict) else None
     if not isinstance(meta, list):
-        # Sometimes ischj contains "metadata" inside nested, or directly list under ischj
-        # Try alternative: look for lists inside data
         candidates: list[dict] = []
         for v in data.values() if isinstance(data, dict) else []:
             if isinstance(v, list):
@@ -110,9 +227,21 @@ def _parse_ischj_candidates(text: str) -> list[dict]:
     return [x for x in meta if isinstance(x, dict)]
 
 
-def _score_candidate(item: dict) -> int:
-    """Score per user rules, returns -1 to reject."""
-    url = str(item.get("original_image", {}).get("url") or item.get("url") or item.get("ou") or "").strip()
+def _score_candidate(item: dict, query: str = "") -> int:
+    """Score per size/host rules plus query relevance. Returns -1 to reject."""
+    orig = item.get("original_image")
+    url = ""
+    if isinstance(orig, dict):
+        url = str(orig.get("url") or "").strip()
+        try:
+            w = int(orig.get("width") or 0)
+            h = int(orig.get("height") or 0)
+        except (ValueError, TypeError):
+            w = h = 0
+    else:
+        w = h = 0
+    if not url:
+        url = str(item.get("url") or item.get("ou") or "").strip()
     if not url.startswith("https://"):
         return -1
     low = url.lower()
@@ -120,46 +249,59 @@ def _score_candidate(item: dict) -> int:
         return -1
     if any(skip in low for skip in _SKIP_SUBSTRS):
         return -1
-    # Extract dimensions
-    w = 0
-    h = 0
     try:
-        w = int(item.get("original_image", {}).get("width") or item.get("ow") or item.get("width") or 0)
-        h = int(item.get("original_image", {}).get("height") or item.get("oh") or item.get("height") or 0)
         if not w:
-            w = int(item.get("width") or 0)
+            w = int(item.get("ow") or item.get("width") or 0)
         if not h:
-            h = int(item.get("height") or 0)
+            h = int(item.get("oh") or item.get("height") or 0)
     except (ValueError, TypeError):
         pass
     score = 10
-    # Prefer 640x360+
     if w >= 640 and h >= 360:
         score += 20
     elif w >= 400 and h >= 300:
         score += 10
     elif w and h and (w < 200 or h < 150):
         score -= 15
-    # Prefer non-svg, common formats
     if low.endswith((".jpg", ".jpeg", ".png", ".webp")):
         score += 3
-    # Prefer educational hosts
-    if any(edu in low for edu in ("britannica", "wikipedia", "wikimedia", "khanacademy", "openstax", "ck12", "byjus", "vedantu", "nasa.gov", "nih.gov", "geeksforgeeks", "tutorialspoint", "w3schools")):
+    if any(
+        edu in low
+        for edu in (
+            "britannica",
+            "wikipedia",
+            "wikimedia",
+            "khanacademy",
+            "openstax",
+            "ck12",
+            "byjus",
+            "vedantu",
+            "nasa.gov",
+            "nih.gov",
+            "geeksforgeeks",
+            "tutorialspoint",
+            "w3schools",
+            "edu/",
+            ".edu/",
+        )
+    ):
         score += 25
-    # Deprioritize obvious stock/paywalled hosts (but don't hard-reject all, keep as fallback)
     if any(stock in low for stock in ("dreamstime", "adobestock", "123rf")):
         score -= 12
-    # Longer URLs often more direct?
+    compact = low.replace("-", "").replace("_", "")
+    if any(hint.replace(" ", "") in compact for hint in ("diagram", "chart", "schematic", "labeled", "anatomy")):
+        score += 12
+    if any(word in low for word in ("stock", "shutter", "lifestyle", "workspace", "mockup")):
+        score -= 10
+    score += _relevance_score(query, item)
     score += min(len(url) // 60, 3)
     return score
 
 
-def pick_https_image(candidates: list[dict]) -> str | None:
-    """Pick highest-scoring https URL, per spec."""
-    best_url: str | None = None
-    best_score = -1
+def pick_https_image(candidates: list[dict], query: str = "") -> str | None:
+    """Pick highest-scoring https URL, favoring query relevance when metadata exists."""
+    ranked: list[tuple[int, int, str]] = []
     for item in candidates:
-        # Normalize item shape: Google ischj metadata entries often have original_image.url
         url = None
         orig = item.get("original_image")
         if isinstance(orig, dict):
@@ -168,13 +310,18 @@ def pick_https_image(candidates: list[dict]) -> str | None:
             url = item.get("url") or item.get("ou")
         if not isinstance(url, str):
             continue
-        score = _score_candidate(item)
+        score = _score_candidate(item, query)
         if score < 0:
             continue
-        if score > best_score:
-            best_score = score
-            best_url = url
-    return best_url
+        relevance = _relevance_score(query, item)
+        ranked.append((score, relevance, url))
+    if not ranked:
+        return None
+    ranked.sort(key=lambda row: (row[0], row[1]), reverse=True)
+    # If any candidate has title/url overlap with the query, prefer among those.
+    with_overlap = [row for row in ranked if row[1] > 0]
+    pool = with_overlap if with_overlap else ranked
+    return pool[0][2]
 
 
 async def _fetch_bing_image(query: str, *, timeout: float = 7.0) -> str | None:
@@ -241,7 +388,7 @@ async def _fetch_bing_image(query: str, *, timeout: float = 7.0) -> str | None:
                             ow = int(ow_m2.group(1))
                         except:  # noqa: E722
                             pass
-                cands.append({"url": raw_url, "width": ow, "height": oh})
+                cands.append({"url": raw_url, "width": ow, "height": oh, "title": snippet[:240]})
                 if len(cands) >= 20:
                     break
             # Also try direct regex for murl with captured URL
@@ -257,7 +404,7 @@ async def _fetch_bing_image(query: str, *, timeout: float = 7.0) -> str | None:
                     cands.append({"url": url_cand, "width": 640, "height": 360})
                     if len(cands) >= 15:
                         break
-            return pick_https_image(cands)
+            return pick_https_image(cands, query)
     except (httpx.HTTPError, ValueError, TypeError):
         return None
 
@@ -300,21 +447,27 @@ async def _fetch_duckduckgo_image(query: str, *, timeout: float = 7.0) -> str | 
                 cands.append(
                     {
                         "url": img,
+                        "title": str(r.get("title") or r.get("name") or ""),
                         "width": int(r.get("width") or 640),
                         "height": int(r.get("height") or 360),
                     }
                 )
-            return pick_https_image(cands)
+            return pick_https_image(cands, query)
     except (httpx.HTTPError, ValueError, TypeError, json.JSONDecodeError):
         return None
 
 
-async def find_google_image_url(query: str, *, timeout: float = 8.0) -> str | None:
+async def find_google_image_url(
+    query: str,
+    *,
+    heading: str | None = None,
+    timeout: float = 8.0,
+) -> str | None:
     """Fetch Google Images search page like a browser, parse JSON, pick best https image.
     Tries Google (ischj) first, then Bing, then DuckDuckGo. Retries once after 800ms.
     """
-    clean = " ".join((query or "").split())[:80].strip()
-    if not clean or clean.lower() in {"none", "n/a", "null"}:
+    clean = enrich_image_query(query, heading)
+    if not clean:
         return None
 
     url = _build_google_url(clean)
@@ -346,7 +499,7 @@ async def find_google_image_url(query: str, *, timeout: float = 8.0) -> str | No
                         candidates.append({"url": m.group(0), "width": 640, "height": 360})
                         if len(candidates) >= 20:
                             break
-                picked = pick_https_image(candidates)
+                picked = pick_https_image(candidates, clean)
                 if picked:
                     return picked
         except (httpx.HTTPError, ValueError, TypeError, json.JSONDecodeError):
@@ -374,8 +527,8 @@ async def fetch_section_images(
 ) -> list[dict]:
     """Fetch images for all sections concurrently with 2 workers and 350ms stagger.
     sections: list of dicts with at least {"id": str, "imageSearchQuery": str}
+    Optional "prompt" / "heading" is used when the AI query is vague.
     Returns same list with added "imageUrl" (or None).
-    Mirrors the TS behavior: 2 workers parallel, ~350ms pause between requests, progress.
     """
     total = len(sections)
     if total == 0:
@@ -383,27 +536,24 @@ async def fetch_section_images(
 
     sem = asyncio.Semaphore(2)
     results: list[dict] = [dict(s) for s in sections]
-    # Track order for staggering
     lock = asyncio.Lock()
     counter = {"done": 0}
 
     async def _one(idx: int):
         async with sem:
-            # Stagger: 350ms * (idx % 2) essentially, but to avoid burst we sleep 350ms before each except first two
             if idx >= 2:
                 await asyncio.sleep(0.35)
             else:
-                # small stagger for first batch too
                 await asyncio.sleep(0.05 * idx)
             query = str(results[idx].get("imageSearchQuery") or results[idx].get("image_search_query") or "").strip()
-            url = await find_google_image_url(query) if query else None
+            heading = str(results[idx].get("prompt") or results[idx].get("heading") or "").strip()
+            url = await find_google_image_url(query, heading=heading or None) if (query or heading) else None
             results[idx]["imageUrl"] = url
             results[idx]["image_url"] = url
             async with lock:
                 counter["done"] += 1
                 if progress_cb:
                     try:
-                        # support both sync and async callbacks
                         maybe = progress_cb(counter["done"], total)
                         if asyncio.iscoroutine(maybe):
                             await maybe
@@ -430,9 +580,11 @@ async def fetch_and_persist_study_item_images(db, study_set_id) -> int:
     if not targets:
         return 0
 
-    sections = [{"id": str(r.id), "imageSearchQuery": r.image_search_query} for r in targets]
+    sections = [
+        {"id": str(r.id), "imageSearchQuery": r.image_search_query, "prompt": r.prompt}
+        for r in targets
+    ]
 
-    # We don't need progress_cb for background; could log
     fetched = await fetch_section_images(sections)
 
     url_by_id = {s["id"]: s.get("imageUrl") for s in fetched}

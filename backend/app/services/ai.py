@@ -219,7 +219,7 @@ High quality, easy to learn. Every item must be crystal-clear, beginner-friendly
 {avoid}
 Return JSON only with this exact shape:
 {{"title":"...","items":[{{"kind":"explanation","prompt":"...","answer":"...","imageSearchQuery":"..."}},{{"kind":"flashcard","prompt":"...","answer":"..."}},{{"kind":"mcq","prompt":"...","answer":"...","options":["a","b","c","d"],"explanation":"..."}}]}}
-- for kind=explanation: use prompt, answer, and imageSearchQuery (2-6 words, neutral visual concept for Google Images, e.g. "mitochondrion diagram", "ancient library interior", "person reading by window" — no logos, no text, safe for school)
+- for kind=explanation: use prompt, answer, and imageSearchQuery (3-7 words: the exact concept + a visual type word like diagram/labeled chart/cross-section/map/illustration — e.g. "mitochondrion labeled diagram", "mitosis phases chart", "Nile river map" — never lifestyle stock like "student studying" or "books on desk")
 - for kind=flashcard: use only prompt and answer
 - for kind=mcq: use prompt, answer, options, explanation
 
@@ -232,7 +232,7 @@ If SOURCE is thin, return fewer items of a kind rather than padding. Do not add 
 Explanations (most important for easy learning):
 - prompt: a short heading for the idea (3-8 words) — when style is "full", order prompts logically start to finish so they read as A-Z short notes for the whole document
 - {explanation_rule}
-- imageSearchQuery: 2-6 words, neutral visual scene that matches the explanation and would make a good Google Images result (e.g. "cell division phases diagram", "photosynthesis light reaction illustration"). Keep generic, safe, no brand names.
+- imageSearchQuery: MUST name the concrete subject from this explanation plus one visual type word (diagram, labeled chart, cross section, schematic, map, photograph of). Prefer textbook/educational visuals. Ban vague mood/stock searches ("person reading by window", "ancient library interior", "students in classroom", "open book"). If the idea is abstract, pick a concrete symbol or process diagram that students would recognize for that idea.
 
 Flashcards:
 - one fact per card
