@@ -183,7 +183,18 @@ export default function UploadPage() {
     try {
       setStage("uploading");
       uploadError.current = "";
-      const uploaded = await startUpload([file]);
+      const uploaded = await Promise.race([
+        startUpload([file]),
+        new Promise<null>((_, reject) => {
+          window.setTimeout(() => {
+            reject(
+              new Error(
+                "Upload timed out. On Netlify set UPLOADTHING_URL to your public HTTPS origin and UPLOADTHING_IS_DEV=false, then redeploy.",
+              ),
+            );
+          }, 90_000);
+        }),
+      ]);
       const first = uploaded?.[0];
       const result = first?.serverData;
       const fileUrl = result?.url || first?.ufsUrl || first?.url;
@@ -192,7 +203,7 @@ export default function UploadPage() {
       if (!fileUrl || !fileKey) {
         throw new Error(
           uploadError.current ||
-            "Upload did not complete. If you used npm start on this machine, restart the app after this fix so UploadThing can finish the handshake.",
+            "Upload did not complete. On Netlify set UPLOADTHING_URL to your public HTTPS origin and UPLOADTHING_IS_DEV=false, then redeploy.",
         );
       }
       const document = await api<DocumentRecord>("/documents/upload-complete", {

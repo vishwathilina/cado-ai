@@ -4,6 +4,60 @@ const backendUrl = (process.env.BACKEND_URL ?? "").replace(/\/$/, "");
 
 export const maxDuration = 300;
 
+function collectSetCookies(upstream: Response): string[] {
+  const typed = upstream.headers as Headers & { getSetCookie?: () => string[] };
+  if (typeof typed.getSetCookie === "function") {
+    const cookies = typed.getSetCookie();
+    if (cookies.length > 0) return cookies;
+  }
+  const single = upstream.headers.get("set-cookie");
+  if (!single) return [];
+  // Node may join multiple Set-Cookie values with ", " which is ambiguous for
+  // Expires dates. Prefer getSetCookie when available; otherwise keep the raw
+  // value as a single entry rather than splitting incorrectly.
+  return [single];
+}
+
+function normalizeProxyCookie(raw: string): string {
+  const parts = raw.split(";").map((part) => part.trim()).filter(Boolean);
+  if (parts.length === 0) return raw;
+
+  const [nameValue, ...attributes] = parts;
+  const kept: string[] = [];
+  let hasPath = false;
+  let hasSameSite = false;
+  let hasSecure = false;
+
+  for (const attribute of attributes) {
+    const lower = attribute.toLowerCase();
+    if (lower.startsWith("domain=")) continue;
+    if (lower.startsWith("path=")) {
+      hasPath = true;
+      kept.push("Path=/");
+      continue;
+    }
+    if (lower.startsWith("samesite=")) {
+      hasSameSite = true;
+      kept.push("SameSite=Lax");
+      continue;
+    }
+    if (lower === "secure") {
+      hasSecure = true;
+      kept.push("Secure");
+      continue;
+    }
+    kept.push(attribute);
+  }
+
+  if (!hasPath) kept.push("Path=/");
+  if (!hasSameSite) kept.push("SameSite=Lax");
+  if (process.env.NODE_ENV === "production" || process.env.NETLIFY === "true") {
+    if (!hasSecure) kept.push("Secure");
+  }
+
+  return [nameValue, ...kept].join("; ");
+}
+
 async function proxy(request: NextRequest, path: string[]) {
   if (!backendUrl) {
     return NextResponse.json({ detail: "BACKEND_URL is not set" }, { status: 503 });
@@ -38,10 +92,8 @@ async function proxy(request: NextRequest, path: string[]) {
     if (key.toLowerCase() === "set-cookie") return;
     responseHeaders.set(key, value);
   });
-  const cookies =
-    typeof upstream.headers.getSetCookie === "function" ? upstream.headers.getSetCookie() : [];
-  for (const cookie of cookies) {
-    responseHeaders.append("set-cookie", cookie);
+  for (const cookie of collectSetCookies(upstream)) {
+    responseHeaders.append("set-cookie", normalizeProxyCookie(cookie));
   }
   return new NextResponse(upstream.body, {
     status: upstream.status,

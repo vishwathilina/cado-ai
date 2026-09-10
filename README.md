@@ -87,6 +87,28 @@ Deploy the frontend to Vercel or Netlify. This app is not a static export: `/das
 directory** to `frontend`, **Publish** to `.next`, then clear cache and redeploy. Set `BACKEND_URL`
 to the FastAPI origin.
 
+### Netlify + Hugging Face checklist
+
+**Netlify env (redeploy after changing):**
+
+- `BACKEND_URL` — Space origin, no trailing slash
+- `UPLOADTHING_TOKEN` — UploadThing app token
+- `UPLOADTHING_URL` — exact public HTTPS origin users open (e.g. `https://your-app.netlify.app`)
+- `UPLOADTHING_IS_DEV=false`
+
+**Hugging Face Space secrets** (see `backend/README.space.md`):
+
+- `FRONTEND_URL` — must match the browser `Origin` exactly (same host as `UPLOADTHING_URL`, no trailing `/`)
+- `COOKIE_SECURE=true`
+- `ACCESS_TOKEN_MINUTES=1440`
+- `REFRESH_TOKEN_DAYS=7`
+
+**Verify in DevTools:**
+
+1. Login → Cookies on the Netlify host: `access_token`, `refresh_token`, `csrf_token` with `Secure` and `Max-Age`
+2. Upload → `/api/uploadthing` completes, then `/api/backend/documents/upload-complete` (progress leaves ~24%)
+3. Hard refresh later the same day → still signed in
+
 Deploy FastAPI to a persistent, worker-capable container host (Railway, Render, Fly.io, ECS, or
 similar). OCR and BGE-M3 embeddings are too memory/CPU heavy for most short-lived serverless
 functions.

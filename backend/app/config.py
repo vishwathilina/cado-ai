@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
     jwt_secret: str = Field("development-only-change-this-secret", min_length=32)
     access_token_minutes: int = 1440
-    refresh_token_days: int = 1
+    refresh_token_days: int = 7
     cookie_secure: bool = False
     ai_base_url: str = "https://api.openai.com/v1"
     ai_api_key: str = ""
@@ -53,6 +53,14 @@ class Settings(BaseSettings):
         # header outright ("Illegal header value"), which looks exactly
         # like the AI provider being unreachable. Strip defensively.
         return value.strip() if isinstance(value, str) else value
+
+    @field_validator("frontend_url")
+    @classmethod
+    def normalize_frontend_url(cls, value: str) -> str:
+        # Origin comparisons are exact; a trailing slash from a copied
+        # dashboard value would reject every browser Origin and look like
+        # random logouts on Netlify → Hugging Face deploys.
+        return value.rstrip("/")
 
     @field_validator("ai_base_url")
     @classmethod
